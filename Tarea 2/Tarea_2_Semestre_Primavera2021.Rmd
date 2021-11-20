@@ -1,0 +1,412 @@
+<div style="text-align: right"> **Universidad de Chile**</div>
+<div style="text-align: right"> **Ingeniería Industrial**</div>
+<div style="text-align: right"> **IN5602**: Marketing II</div>
+<div style="text-align: right">**Prof**: Pedro Arana</div>
+<div style="text-align: right">**Auxs**: R. Cerda, G. Mora, A. Muñoz y R. Tiara</div>
+
+---
+title:  'Tarea 2 - Semestre Primavera 2021'
+author: 'Sebastián Urbina - Michael Clemans - Jorge Manriquez'
+date:   '26 de octubre de 2021'
+output:
+  html_document:
+    df_print: paged
+    theme: simplex
+    highlight: tango
+    toc: no
+encoding: UTF-8
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# {.tabset}
+## Enunciado: Concurso de vinos
+
+El Concurso Mundial de Bruselas es una competencia internacional de vinos creada en el año 1994 en
+Bélgica. La edición número 27 de la competencia se llevará a cabo en Mayo del próximo año en la ciudad de
+Brno, República Checa. Tradicionalmente las vinícolas participantes deben presentar sus vinos candidatos a un
+panel de expertos de más de 40 países, con el fin de obtener una medalla en su categoría. Chile es el cuarto país exportador de vinos a nivel mundial, por lo que resulta natural que productores nacionales estén interesados en participar de esta competencia.
+
+La Viña Doña Carolina, candidata nacional a ganar la competencia, se ha puesto como objetivo al menos obtener
+medalla de bronce en su categoría. Para esto diseñó y llevó a cabo un experimento en el cual un grupo de
+1.000 expertos del país evaluaron los vinos que tienen en proceso de desarrollo actualmente. Cada experto tuvo
+12 instancias en las que tuvo que escoger entre 4 vinos distintos mediante una prueba a ciegas. Adicionalmente, la viña cuenta con la información de la composición físico-química de cada vino, como por ejemplo su densidad, su pH
+y el grado de alcohol.
+
+Con esta información, la viña ha solicitado su ayuda para descubrir cuál es la composición del vino ideal, dadas
+las preferencias de los expertos chilenos, para posteriormente producirlo y presentarlo como candidato en el concurso.
+
+La base de datos panel vinos contiene toda la información del experimento llevado a cabo por la viña, incluyendo
+un identificador para el experto, el número de la prueba, y la composición los vinos probados en cada prueba,
+incluida la elección del experto.
+
+#### **Preguntas**
+
+1. (1,0 puntos) Explore los datos a trabajar. Investigue qué tan influyentes son las variables de composición físico-química en la elección del vino. Para esto utilice métodos gráficos como matrices de correlación, scatter plots o histogramas. Además responda a las siguientes preguntas:
+
+- ¿Cuántos vinos distintos se utilizaron en la prueba?
+- ¿Cuál fue la alternativa más elegido en cada uno de los 12 tests?
+- ¿Cuál fue el vino más elegido por los expertos?¿Cree que es una comparación válida, dado que los expertos escogen entre solo 4 alternativas?
+ 
+2. (0,5 puntos) Para las partes 3, 4, 5 y 6 separe la base de datos en un conjunto de entrenamiento y otro de testeo. Explique los criterios que utilizó para realizar la separación.
+
+3. (1,0 puntos) Estime un modelo Logit e interprete los coeficientes con tal de entender qúe valoran los expertos a la hora de evaluar la calidad de un vino. Realice predicciones con su modelo Logit.
+
+4. (0,5 puntos) Estime un modelo Probit para entender qué valoran los expertos a la hora de evaluar la calidad de un
+vino. Realice predicciones con su modelo Probit.
+
+5. (1,0 puntos) Agregue heterogeneidad no observable discreta (Latent Class) al modelo de la parte 4 y realice predicciones con este nuevo modelo. Repita el mismo ejercicio para un modelo de heterogeneidad no observable continua (Mixed Logit).
+
+6. (1,0 puntos) Utilizando lo aprendido de los modelos anteriores, construya tres modelos de machine learning con métodos diferentes.
+
+7. (1,0 puntos) Compare los modelos estimados anteriormente. Para ello calcule la matriz de confusión de cada modelo y utilice métricas derivadas a partir de esta (como precisión) para la comparación en el conjunto de datos de testeo.
+
+8. (1,0 puntos) ¿Qué vino escogería para ser utilizado en la competencia mundial? Resuma sus aprendizajes principales en un máximo de 4 tablas o figuras. Redacte de manera concisa sus resultados tal como los reportaría al departamento comercial interesado en informarse de la preferencia de los expertos.
+
+#### **Reglas del juego** 
+
+- Las tareas buscan replicar parcialmente las labores a las que se enfrentarían en el análisis de datos en una organización para el apoyo en la toma de decisiones. Por esto, se han propuesto preguntas relativamente abiertas que requieren que ustedes discutan y decidan cual es el mejor enfoque de solución. Les pedimos que se involucren tempranamente en el desarrollo de la tarea para tener una discusión enriquecedora. 
+
+- Todas las dudas, comentarios y errores publicarlos exclusivamente en el foro de U-Cursos. De esta forma todos se benefician de las respuestas ofrecidas. 
+
+- Consideramos que es muy importante que logren escribir un informe conciso con una redacción acorde de un informe técnico profesional, los análisis y las conclusiones que obtengan de cada pregunta es en específico lo que debe declararse. La presentación y comunicación de resultados es parte integral de la tarea y por tanto será evaluada cuidadosamente. 
+
+- La tarea se desarrolla en grupos de máximo 3 integrantes. No hay excepciones. El entregable principal es un único markdown separado en tres tabs (a través de la opción .tabset). En el primer tab incluya todo el desarrollo de la tarea adecuadamente comentado. El segundo tab incluya el resumen de sus resultado de acuerdo a lo pedido en la pregunta 6. Este segundo tab es el que usarán en caso de que les corresponda presentar sus resultados. Considere el tercer tab como de anexos y puede incluir aquí cualquier resultado complementario. Para entregar sus resultados suba vía U-Cursos un único archivo comprimido llamado t2-A1-A2-A3.zip, donde A1, A2 y A3 es el primer apellido de los integrantes del grupo. Incluya tanto el archivo .html de salida del markdown como los códigos fuentes que permitan reproducir sus resultados. 
+
+- Para la pregunta 8 consideramos que 4 figuras son suficientes para resumir los aprendizajes más relevantes, pero si están convencidos de que agregar una figura adicional es absolutamente necesaria, ¡adelante! 
+
+- La fecha de entrega de la tarea es el día lunes 29 de Noviembre a las 09:00 hrs.
+
+- El equipo docente considera que la copia de tareas atenta en contra de tu aprendizaje y por tanto aplicará todas las medidas que estén a su disposición para desincentivar esta mala práctica. 
+
+## Preliminares
+
+Escribe acá todos los comandos que necesitas ejecutar antes de abordar las preguntas de la tarea (carga de librerías, lectura de datos, limpieza de la data, transformación de variables y todo lo que necesites)
+
+#### Preparación Tarea
+
+
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
+rm(list=ls())
+graphics.off()
+set.seed(1234)
+```
+
+
+```{r P, echo=FALSE, warning=FALSE}
+#Importación librerias
+library(readr)
+library(dplyr)
+library(knitr)
+```
+
+
+```{r cargar data}
+vinos <- as.data.frame(read_delim('panel_vinos.csv', delim=';'))
+vinos <- subset(vinos, select=-X1) #Quitamos la columna X1, pues no aporta información
+```
+
+```{r mostrar db}
+library(knitr) #Librería para mostrar objetos en Rmarkdown
+kable(vinos[1:10,], format = "markdown") #Mostramos la base de datos
+```
+```{r nulos}
+#Vemos si existen valores nulos
+is.null(vinos)
+```
+##### Formato Wide
+
+```{r wide}
+library(reshape2) #nos sirve para transformar de long a wide
+
+vinos_wide <- reshape(data=vinos, 
+                      idvar=c('expert','test'),
+                      v.names=c('alcohol',
+                                'chlorides',
+                                'citric_acid',
+                                'density',
+                                'fixed_acidity',
+                                'free_sulfur_dioxide',
+                                'pH',
+                                'residual_sugar',
+                                'sulphates',
+                                'total_sulfur_dioxide',
+                                'volatile_acidity',
+                                'choice'),
+                      timevar='alternative',
+                      direction='wide'
+                      )
+
+```
+
+Para utilizar posteriormente las librerias de `mlogit()` y `gmnl()` se necesita sólo una columna de la elección. Al transformar los datos a Wide quedan 4 columnas de `choice`. Por lo que procederemos a dejar sólo una que contenga la elección sobre los 4 vinos.
+
+```{r formateo}
+
+#Creamos la columna choice con la elección
+vinos_wide$choice <- max.col(cbind(vinos_wide$choice.1,vinos_wide$choice.2,vinos_wide$choice.3,vinos_wide$choice.4))
+
+#Eliminamos las columnas choice.#
+vinos_wide <- vinos_wide %>% select(-contains('choice.'))
+```
+
+##### División de datos
+
+Para dividir los datos en train y testing. Se agruparán los datos por experto y de estos se seleccionará el 70% para entrenar. De esta manera, para cada experto se seleccionará un 70% de los test realizados, los cuales seran aleatorios y diferentes para cada uno.
+
+```{r division data}
+set.seed(1234) #Seteamos la semilla para que la división "aleatoria" sea la misma para cada ejecución.
+vinos_train <- vinos_wide %>% group_by(expert) %>% sample_frac(0.7) 
+
+vinos_test <- anti_join(vinos_wide, vinos_train, by=c('expert','test')) #Seleccionamos el complemento de train para test
+```
+
+##### Formateo datos
+
+Ahora procederemos a transformar la data para utilizar las librerias de `mlogit()` y `gmnl()`.
+
+
+```{r formateo logit y gmnl}
+library(mlogit) 
+
+#Formateamos el train a mglogit()
+vinos_train_mlogit <- mlogit.data(vinos_train,
+                                  shape='wide',
+                                  varying=3:46,
+                                  sep='.',
+                                  choice='choice',
+                                  id=c('expert','test'))
+
+#Formateamos el test a mglogit()
+vinos_test_mlogit <- mlogit.data(vinos_test,
+                                  shape='wide',
+                                  varying=3:46,
+                                  sep='.',
+                                  choice='choice',
+                                  id=c('expert','test'))
+
+### Formateo para gmnl()
+library(devtools)
+install_bitbucket("mauricio1986/gmnl")
+
+library(gmnl)
+#Formateamos el train a gmnl()
+vinos_train_gmnl <- mlogit.data(vinos_train,
+                                  shape='wide',
+                                  varying=3:46,
+                                  sep='.',
+                                  choice='choice',
+                                  id=c('expert','test'))
+
+#Formateamos el test a gmnl()
+vinos_test_gmnl <- mlogit.data(vinos_test,
+                                  shape='wide',
+                                  varying=3:46,
+                                  sep='.',
+                                  choice='choice',
+                                  id=c('expert','test'))
+```
+
+
+
+## Desarrollo
+
+Documenta acá el desarrollo de tu tarea por pregunta.
+
+#### Pregunta 1
+
+```{r P1}
+#Exploración de datos
+
+```
+
+#### Pregunta 2
+
+```{r P2}
+#Logit
+MLogit <- mlogit(choice ~  
+                   alcohol + 
+                   chlorides + 
+                   citric_acid + 
+                   density + 
+                   fixed_acidity + 
+                   free_sulfur_dioxide + 
+                   pH +
+                   residual_sugar + 
+                   sulphates + 
+                   total_sulfur_dioxide + 
+                   volatile_acidity | 0 | 0,
+                 data=vinos_train_mlogit)
+```
+
+```{r resumen mlogit}
+summary(MLogit)
+```
+
+
+```{r prediccion mlogit}
+predictMLogit = predict(MLogit, newdata = vinos_test_mlogit) #¿Qué alternativa escoge cada persona?: La que tenga mayor probabilidad
+predictMLogit = as.matrix(max.col(predictMLogit))  #vector que contiene la alternativa con mayor probabilidad (la más probable a escoger) para cada persona en cada instancia de decisión
+```
+
+
+
+#### Pregunta 3
+
+
+
+```{r P3}
+#Probit
+MProbit <- mlogit(choice ~  
+                   alcohol + 
+                   chlorides + 
+                   citric_acid + 
+                   density + 
+                   fixed_acidity + 
+                   free_sulfur_dioxide + 
+                   pH +
+                   residual_sugar + 
+                   sulphates + 
+                   total_sulfur_dioxide + 
+                   volatile_acidity | 0 | 0,
+                 data=vinos_train_mlogit[1:300,],
+                 seed=24,
+                 R=100,
+                 probit=TRUE,
+                 print.level=0)
+```
+
+```{r resumen mprobit}
+summary(MProbit)
+```
+
+
+```{r prediccion mprobit}
+predictMProbit = predict(MProbit, newdata = vinos_test_mlogit)#¿Qué alternativa escoge cada persona?: La que tenga mayor probabilidad
+predictMProbit = as.matrix(max.col(predictMProbit))  #vector que contiene la alternativa con mayor probabilidad (la más probable a escoger) para cada persona en cada instancia de decisión
+```
+
+#### Pregunta 4
+
+##### Latent Class
+
+```{r MLCLogit, message=FALSE, warning=FALSE}
+library(gmnl)
+
+##### ESTIMACIÓN
+MLCLogit = gmnl(choice ~  
+                   alcohol + 
+                   chlorides + 
+                   citric_acid + 
+                   density + 
+                   fixed_acidity + 
+                   free_sulfur_dioxide + 
+                   pH +
+                   residual_sugar + 
+                   sulphates + 
+                   total_sulfur_dioxide + 
+                   volatile_acidity
+                |0|0|0|1,
+                data = vinos_train_gmnl, 
+                model = 'lc', 
+                Q = 2)
+summary(MLCLogit)
+```
+
+##### Mixed Logit
+```{r MMLogit, message=FALSE, warning=FALSE}
+
+##### ESTIMACIÓN
+MMLogit = mlogit(choice ~  
+                   alcohol + 
+                   chlorides + 
+                   citric_acid + 
+                   density + 
+                   fixed_acidity + 
+                   free_sulfur_dioxide + 
+                   pH +
+                   residual_sugar + 
+                   sulphates + 
+                   total_sulfur_dioxide + 
+                   volatile_acidity|0|0, 
+              data = vinos_train_mlogit[1:10000,],
+              rpar= c(alcohol='n',
+                   chlorides='n',
+                   citric_acid='n',
+                   density='n',
+                   fixed_acidity='n', 
+                   free_sulfur_dioxide='n', 
+                   pH='n',
+                   residual_sugar='n', 
+                   sulphates='n',
+                   total_sulfur_dioxide='n',
+                   volatile_acidity='n'), 
+              R = 100, 
+              halton = NA, 
+              correlation = TRUE)
+
+summary(MMLogit)
+```
+
+```{r predicion mixed logit}
+#####PREDICCIÓN 
+predictMMLogit = predict(MMLogit, newdata = vinos_train_mlogit)
+predictMMLogit = as.matrix(max.col(predictMMLogit)) 
+```
+
+
+```{r}
+true_choice = vinos_test$choice
+true_choice = as.factor(true_choice)
+
+MatrizConfMLogit = table(true_choice , predictMLogit) 
+MatrizConfMProbit = table(true_choice , predictMProbit) 
+MatrizConfMLCLogit = table(true_choice , predictMLCLogit) 
+MatrizConfMMLogit = table(true_choice , predictMMLogit) 
+```
+
+
+
+#### Pregunta 5
+
+
+
+```{r P5}
+#ML
+
+```
+
+#### Pregunta 6
+
+
+```{r P6}
+#Resuma
+
+```
+
+## Anexos
+
+Documenta acá cualquier otro adicional que consideres útil tener de referencia. 
+
+#### Pregunta X
+
+```{r PX}
+
+```
+
+#### Pregunta Y
+
+```{r PY}
+
+```
+
+#### Pregunta Z
+
+```{r PZ}
+
+```
+
