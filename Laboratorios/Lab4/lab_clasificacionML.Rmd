@@ -1,0 +1,242 @@
+---
+title: 'Laboratorio Otros Modelos de Clasifiación IN5602 - Semestre Primavera 2021'
+author: "Gabriela Mora"
+date: "10-11-2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Machine Learning  
+
+La IA tiene por objetivo crear procesos automáticos que uno espera que funcionan de manera "inteligente" (la inteligencia humana), y dentro se ese marco se encuentra el Machine learning que tiene por objetivo no depender de un experto que decida cómo un humano resuelve un problema, si no que lo que uno trata de hacer es que con un algortimo general, a partir de experiencia (datos), pueda resolver el problema de manera automática.
+
+En particular los modelos de clasificación de machine learning sirven para clasificar problemas dado el aprendizaje que obtuvo con datos previos en la etapa de entrenamiento, para luego probar el desempeño con los datos de testeo. El objetivo de los modelos de machine learning es que sean modelos que se puedan **generalizar**, esto quiere decir que si el modelo se encuentra con datos nuevos, el desempeño de nuestro modelo es bueno, o sea, clasifica de buena manera en este caso. 
+
+
+# Desarollo del laboratorio {.tabset}
+
+
+## El Problema 
+
+Trabajarán con una base de datos sobre cáncer de mamas. El objetivo es desarrollar un modelo de ml que logre  identificar cancer de mamas según las características presentadas en la base de datos. Esta posee 9  variables variables explicativas que se listan a continuación:
+
+* Sample code number            id number
+* Clump Thickness               1 - 10
+* Uniformity of Cell Size       1 - 10
+* Uniformity of Cell Shape      1 - 10
+* Marginal Adhesion             1 - 10
+* Single Epithelial Cell Size   1 - 10
+* Bare Nuclei                   1 - 10
+* Bland Chromatin               1 - 10
+* Normal Nucleoli               1 - 10
+* Mitoses                       1 - 10
+* Class:                       (2 for benign, 4 for malignant)
+
+
+
+## Carga de datos y EDA
+```{r, message = FALSE, warning=FALSE}
+# Librerias
+library(caret)
+library(readr)
+library(dplyr)
+library(corrplot)  #Para realizar correlogramas
+cancer_mamas<-read.csv(file="E:/Sebas/Escritorio/2021-2/Marketing II/Lab4/cancer.csv", header=TRUE, sep=";")
+
+#Realice un EDA simple con el objetivo de ver las correlaciones entre la variable de interés y la clase
+
+```
+
+```{r EDA, fig.width= 10, fig.height=8, message=FALSE, warning=FALSE}
+#Exploración de datos
+correlacion <- cor(subset((select_if(cancer_mamas, is.numeric)),select=-c(1)));
+corrplot(correlacion, method = "shade", shade.col = NA, tl.col = "black", tl.srt = 90, addCoef.col = "black", number.digits=2)
+```
+
+Se puede observar en la matriz de correlación que en general todas las variables del dataset tienen algun grado de correlación. Asimismo la variable de interés `Class` está muy correlacionada con todas las demás variables.  
+
+
+
+
+
+## Separación de la base en datos de entrenamiento y testeo
+```{r, message = FALSE, warning=FALSE}
+#Se cambian valores de las clases
+cancer_mamas$Class <- ifelse(cancer_mamas$Class==2, 'yes', 'no')
+
+### Se definen los datos de entrenamiento y de test
+train <- sample(1:nrow(cancer_mamas), size=round(0.8*nrow(cancer_mamas),0)) #indice aleatorio para los datos de entrenamiento
+
+cancer_mamas.train <- cancer_mamas[train,]
+cancer_mamas.test  <- cancer_mamas[-train,]
+
+```
+
+## K-Nearest Neighbors
+
+<center> ![](C:/Users/enaga/Documents/Marketing 2/knn.png)</center>
+
+
+K-vecinos más cercanos (KNN) clasifica datos según los registros más "parecidos" que se configuraron en la etapa de entrenamiento del modelo, para medir "similitud" se usan métricas de distancia. Consideraciones en este modelo:
+
+* Cuando hagan su tarea tendrán variables con categorías, en ese caso, recuerden pasar sus variables a valores que sean reconocibles por este modelo. Por ejemplo, a variables dummies si con variables nominales o escalar los valores si son variables ordinales.
+
+* Al ser un modelo con métricas de distancia, consideren normalizar las magnitudes de todas estas. Ya que algunas pueden "pesar más" que otras. Para hacerlo apliquen $(preProcess = c("center","scale"))$
+
+## Random Forest
+
+<center>![](C:/Users/enaga/Documents/Marketing 2/RandomForest.png)</center>
+
+Random Forest se construyen utilizando los mismos principios fundamentales que los árboles de decisión, pero con la diferencia que en vez de crear sólo un árbol se contruyen varios. El mecanismo funciona separando el conjunto de entrenamiento en tantos subconjuntos como arboles de decisión se creen, los cuales tienen diferentes caracteríticas en sus nodos raíces, de decisión y de hoja, cuando el modelo clasifica este elige la clase más votada por los árboles.
+
+## Support Vector Machines (SVM)
+
+<center>![](C:/Users/enaga/Documents/Marketing 2/SVM.jpg)</center>
+
+Suppot Vector Machines se formula como un problema de optimización matemática que busca encontrar el mejor hiperplano que me separa los casos. Entonces, si es esto lo que se busca, ¿cuál es el mejor hiperplano? es el que tiene el máximo margen. Considerariones en este modelo:
+
+* Al igual que KNN funciona con métricas de distancia. Tengan ojo cuando usen variables con categorías en este modelo
+* Para los más curiosos, hay SVM lineales y no lineales.
+* Asegura óptimos globales a diferencia de los árboles de decisión
+* Es más costoso de computar 
+* Mejores resultados de generalización.
+
+## Métricas en modelos de clasificación
+
+<center>![](C:/Users/enaga/Documents/Marketing 2/descarga.png){width=500 height=250}</center>
+
+
+* *Accuracy* Indica sobre el total de elementos cuantos son predichos correctamente
+
+$$Accuracy=\frac{TruePositives+TrueNegatives}{TruePositives+FalsePositives+TrueNegatives+FalseNegatives}$$
+
+* *Precision* Indica respecto a los elementos predichos como positivos cuantos lo son efectivamente. 
+
+$$Precision=\frac{TruePositives}{TruePositives+FalsePositives}$$
+
+* *Recall - Sensibility* Mide respecto a todos los elementos que efectivamente son positivos cuantos fueron predichos correctamente.
+
+$$Recall=\frac{TruePositives}{TruePositives+FalseNegatives}$$
+
+* *F-Measure* Entrega un promedio ponderado entre precision y recall. No posee interpretación intuitiva más alla de una media armonica entre precision y recall.
+
+$$F_{measure}=\frac{2⋅Recall⋅Precision}{Recall+Presicion}$$
+
+
+* Pdemos utilizar la librería MLmetrics para evaluar las otrás metricas no disponibles en caret o la pueden calcular a mano.
+
+## Preguntas
+
+Para responder estar preguntas sugiero ver la clase de otros modelos de clasificación y los códigos que se mostraron.
+
+##### Pregunta 1
+
+Como se deben escoger 3 variables, en base al gráfico de correlación realizado en el análisis exploratorio. Se utilizarán: `Uniformity.of.Cell.Size`, `Bare.Nuclei` y `Bland.Chromatin`, en base a que son las que tienen mayor correlación respecto a la variable a predecir. Cabe destacar que se ignoró `Uniformity.Of.Cell.Shape` porque está bastante correlacionada con la de elegida de Size.
+
+Como se está trabajando con datos sensibles de salud y queremos evitar los Falsos Negativos, pues implicaría que una persona enferma no sería considerada bajo un tratamiento. Se utilizará como métrica esencial `Recall` o `Sensivity`, ya que mide la cantidad de Falsos Negativos en las predicciones del modelo. Luego, como métrica segundaria se utilizará `Accuracy`.
+
+```{r p1}
+# Determine 2 métricas para comparar los modelos, justifique su elección.
+
+```
+
+
+##### Pregunta 2
+
+Primero entrenamos un **Support Vector Machine(SVM)**, con 5-fold cross-validation y probando 5 parámetros distintos.
+
+```{r p2 SVM, message=FALSE, warning=FALSE}
+# Corra 2 modelos de clasificación use las variables seleccionadas anteriormente para predecir la existencia de cáncer de mamas.
+# Cálcule para cada modelo las metricas seleccionadas para el set de entrenamiento y de testeo, además grafique la matriz de confusión para ambos.
+# Comente sobre los resultados, ¿se observa overfitting o underfitting?
+# confusionMatrix(pred_vali, vali$target)
+library(MLmetrics) #Cargamos esta librería para utilizar Accuracy
+train.svm <- train(Class ~ Uniformity.of.Cell.Size+Bare.Nuclei+Bland.Chromatin, data=cancer_mamas.train, method="svmLinear2",
+                   trControl  = trainControl("cv", number=5, classProbs=TRUE, summaryFunction=multiClassSummary),
+                   preProcess = c("center","scale"),
+                   tuneLength = 5,
+                   metric = "Recall")
+train.svm
+```
+Ahora calculamos la predicción y posteriormente la matriz de confusión.
+
+```{r}
+predictSVM = predict(train.svm, newdata = cancer_mamas.test)
+
+true_choice = cancer_mamas.test$Class #formateamos los datos de testeo a X1,X2,X3,X4 para poder compararlos
+
+MatrizConfSVM = table(true_choice , predictSVM) 
+MatrizConfSVM
+```
+
+Ahora entrenaremos un **Random Forest(RF)**, con 5-fold cross-validation y probando 5 parámetros distintos.
+
+```{r p2 rf}
+set.seed(1)
+train.rf <- train(Class ~ Uniformity.of.Cell.Size+Bare.Nuclei+Bland.Chromatin, data=cancer_mamas.train, method="parRF",
+                  trControl=trainControl("cv", number=5, allowParallel=TRUE, classProbs=TRUE, 
+                  summaryFunction=multiClassSummary),
+                  preProcess=c("center","scale"),
+                  tuneLength=5,
+                  metric="Recall")
+train.rf
+```
+
+Al igual que antes, predecidmos y creamos la matriz de confusión.
+```{r}
+
+predictRF = predict(train.rf, newdata = cancer_mamas.test)
+
+#Se crea la matriz de confusión
+MatrizConfRF= table(true_choice , predictRF) 
+MatrizConfRF
+```
+
+##### Pregunta 3
+
+Para mostrar los resultados y la matriz de confusión se utilizará la librería `cvms`, la cual permite graficar con diseño.
+
+```{r p3, figures-side, fig.show='hold', out.width='50%', warning=FALSE, message=FALSE}
+library(cvms)
+
+cfm_svm <- as_tibble(MatrizConfSVM) #Transformamos la matriz confusión de SVM al formato requerido
+cfm_rf <- as_tibble(MatrizConfRF)   #Transformamos la matriz confusión de RF al formato requerido
+
+
+
+## Creamos los gráficos de los modelos ML
+plot_confusion_matrix(cfm_svm, 
+                      target_col = "true_choice", 
+                      prediction_col = "predictSVM",
+                      counts_col = "n",
+                      digits=0,
+                      counts_on_top = TRUE,
+                      font_counts = font(size=6),
+                      font_normalized = font(size=4),
+                      font_col_percentages = font(size=5),
+                      font_row_percentages = font(size=5))
+
+plot_confusion_matrix(cfm_rf, 
+                      target_col = "true_choice", 
+                      prediction_col = "predictRF",
+                      counts_col = "n",
+                      digits=0,
+                      counts_on_top = TRUE,
+                      font_counts = font(size=6),
+                      font_normalized = font(size=4),
+                      font_col_percentages = font(size=5),
+                      font_row_percentages = font(size=5))
+
+```
+
+```{r p32, figures-side, fig.show='hold', out.width='20%', warning=FALSE, message=FALSE}
+results <- resamples(list(svm=train.svm, rf=train.rf))
+bwplot(results, layout = c(3, 1))
+```
+
+
+

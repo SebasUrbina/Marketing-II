@@ -1,0 +1,172 @@
+---
+title: "Laboratorio 1"
+author: "Sebastián Urbina"
+date: "25-08-2021"
+output: 
+  html_document:
+    df_print: paged
+    highlighted: tango
+    theme: simplex
+    toc: yes
+  pdf_document:
+    toc: yes
+encoding: UTF-8
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())         # Limpia la lista de objetos 
+graphics.off()        # Limpia la lista de gráficos
+options(digits = 5)   # Número de dígitos a utilizar
+setwd('E:/Sebas/Escritorio/2021-2/Marketing II/Lab1')
+```
+
+
+# Pregunta 1 - Generación de Data 
+
+Use la función *rnorm()* para definir un dataframe con columnas $x_1$ y $x_2$ de 1000 observaciones, con media $\mu = (\mu_1, \mu_2) = (4, 6)$  y $\sigma=\mu * 15\%$. Use la misma función para definir tambien una columna de errores normales $\epsilon$ que distribuyen $N(0, 1)$. Notar que puede incluir en la función *rnorm()* la media y desviación estándar que desea en sus vectores.
+
+```{r p1a}
+
+set.seed(1997)
+n <- 1000
+mu1 <- 4
+mu2 <- 6
+
+df <- data.frame(x1 = rnorm(n, mu1, mu1*0.15),
+                 x2 = rnorm(n, mu2, mu2*0.15),
+                 e = rnorm(n, 0, 1))
+
+```
+
+De una distribución uniforme $U(-M,M)$, genere valores para $b_0$, $b_1$ y $b_2$. $M$ corresponde su mes de nacimiento. Defina la columna $y$ como $y = b_0 + b_1 x_1 + b_2 x_2 + \varepsilon$. 
+
+```{r p1b}
+
+# definir b0, b1 y b2
+# definir df$y = b0 + b1*df$x1 + b2*df$x2 + df$e
+
+M <- 9
+
+b0 <- runif(1, min=-M, max=M)
+b1 <- runif(1, min=-M, max=M)
+b2 <- runif(1, min=-M, max=M)
+
+df$y = b0 + b1*df$x1 + b2*df$x2 + df$e
+
+```
+
+
+
+
+# Pregunta 2 - Regresión Lineal
+
+Use el comando *lm()* para correr un modelo de regresión $y = b_0 + b_1 x_1 + b_2 x_2 + \varepsilon$. 
+```{r p2a}
+reg <- lm(df$y ~ df$x1 + df$x2)
+summary(reg)
+```
+
+Comente brevemente cómo interpreta los resultados.
+
+Se puede observar que todos los coeficientes son significativos al 0.1%, lo que tiene sentido, pues se creó la regresión en base a $b_0,b_1,b_2$ conocidos e intencionalmente una dependencia de la variable dependiente con las independientes. Los resultados evidencian que el modelo converge a estos betas de buena manera. La diferencia se explica por el error.
+
+Asimismo, se entiende que un aumento de una unidad sobre la variable $x_1$ produce una reducción de 2.78 puntos sobre la variable y. Por otro lado, un aumenta de una unidad sobre la variable $x_2$ produce una reducción de 1.78 puntos sobre la variable dependiente.
+
+Explore brevemente la documentación de la función *lm()* para ver cómo puede rescatar los valores predichos por el modelo de regresión para cada valor de $x_1$ y $x_2$. Llámele *ypred* a este vector y use la función *plot()* para generar un scatter plot de y vs ypred.  
+
+```{r preg2.b}
+
+ypred <- reg$fitted.values #Valores predichos
+plot(df$y, ypred, xlab='Y', ylab='Y pred', main='Y vs Y pred')
+
+
+```
+
+Comente brevemente.
+
+Se puede evidenciar gráficamente que el modelo predice bastante bien, lo que es consecuencia de que los betas encontrados son significativos y explican de buena manera la variable dependiente.
+
+
+# Pregunta 3 - Sampling e indexación 
+Usted desea obtener un sample aleatorio de 100 observaciones de la muestra original. Para ello, siga los siguientes pasos:
+
+###### Forma n°1
+1. Con la función #sample(i:k,n, replace=False) genere una lista llamada 'rand' de 100 números enteros aleatorios.
+
+2. Genere una nueva variable en la base de datos llamada 'sample' con valores 0.
+
+3. Con un ciclo for, remplace el valor de la variable 'sample' con el valor 1 si la observación $i$ está dentro de la lista 'rand'.
+
+4. Genere una nueva base de datos llamada 'df_sample_1' con la función #subset().
+
+```{r preg4}
+#1. sample()
+#2. df$sample = 
+#3. for ...
+#4. df_sample_1 = subset ( ... )
+
+m <- 100
+rand <- sample(1:1000, m, replace=FALSE)
+df$sample <- rep(0,1000)
+for (i in 1:1000){
+  if (i %in% rand){
+    df$sample[i] <- 1
+  }
+}
+
+df_sample_1 <- subset(df, sample == 1)
+
+```
+
+##### Forma n°2
+A partir del paso 1 anterior, obtenga los resultados del paso 4 utilizando solo 1 línea de código, llamando a esta base de datos 'df_sample_2'. Puede ser de ayuda visitar 
+https://rpubs.com/adiedrichs/basicIndexInR .
+
+```{r preg4b}
+df_sample_2 <- df[rownames(df) %in% rand,]
+```
+
+Estime de nuevo la regresión con el nuevo sample. Compare los resultados de ambas regresiones. Comente acerca de las diferencias.
+```{r p4c}
+reg2 <- lm(df_sample_2$y ~ df_sample_2$x1 + df_sample_2$x2)
+summary(reg2)
+```
+Se puede notar que nuevamente los coeficientes son significativos. Existe una sutil diferencia en significancia del intercepto o $b_0$. Asimismo, existe un aumento del error estándar, lo que tiene sentido, pues se utilizó una pequeña muestra del total de datos. En terminos generales esto nos dice que el modelo sigue siendo bueno a pesar de tener menos datos y aproxima de buena manera los beta o la influencia sobre la variable independiente.
+
+# Pregunta 4 - Factor variables
+Cree una nueva base de datos la cual contenga una variable $y \sim N(0,1)$ de 1000 observaciones. Luego, genere una variable $x_1 \sim N(10,1.5)$ y una variable categórica de 3 categorías, las cuales puede nombrar y estar distribuidas en la muestra como ud. prefiera.
+
+```{r preg4.a}
+# y = ...
+# x_1 = ...
+# cat = ...
+# df = data.frame(...)
+
+n <- 1000
+y <- rnorm(n,0,1)
+x_1 <- rnorm(n,10,1.5)
+v <- c('Piedra','Papel','Tijera')
+cat <- rep(0,n)
+for (i in 1:n){
+  cat[i] <- v[sample(1:3,1)] # Elijo un nro al azar entre 1 y 3 y de esta manera lo agrego al vector cat.
+}
+df2 <- data.frame(x_1,
+                  y,
+                  cat)
+```
+
+Estime la regresión $y = \beta_0 + \sum_{i=1}^{n=2}\beta_jcat_j + \beta_3 x_1 + \varepsilon$. 
+
+```{r preg4.b}
+# reg <- lm(formula = [...] ~ [...].f + X, data = [...])
+# summary(reg)
+reg3 <- lm(y ~ cat + x_1,df2)
+summary(reg3)
+````
+
+Interprete los resultados y coeficientes obtenidos.
+
+Según lo resultados, se obtiene que la variable categórica Piedra es significativa al 1% y Tijera al 5%. Los coeficientes de las variables categóricas evidencian la diferencia respecto a la variable base Papel en promedio, en relación al efecto sobre la variable independiente. Asimismo, la variable $x_1$ resulta no ser significativa.
+
+El modelo posee un $R^2$ cercano a 0, lo que nos indica que no explica para nada bien la variabilidad de los datos. Esto tiene bastante sentido, pues generamos distribuciones diferentes y sin ningún nexo entre ellas(a diferencia del caso anterior). Por lo que es razonable que la variable $x_1$ no sea significativa. Asimismo, la significancia de las variables categóricas está dada por netamente la aleatoriedad presente.

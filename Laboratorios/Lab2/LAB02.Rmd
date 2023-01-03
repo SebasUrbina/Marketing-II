@@ -1,0 +1,311 @@
+---
+title:  'Laboratorio 2 IN5602 - Semestre Primavera 2021'
+author: 'Francisca Moraga'
+date:   '08 de Septiembre de 2021'
+output:
+  html_document:
+    df_print: paged
+    theme: simplex
+    highlight: tango
+    toc: yes
+encoding: UTF-8
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Machine Learning
+
+Machine Learning es un conjunto de métodos que Automatizar la construcción de modelos analíticos y se basa en la idea de que los sistemas pueden aprender de los datos, identificar patrones y tomar decisiones con una mínima intervención humana.
+
+Los problemas más típicos que resuelven los modelos de Machine Learning son 2:
+
+1. Regresiones: Predicción de una variable continua
+2. Clasificación: Predeción de una variable discreta
+
+## División de los datos
+
+Para dividir los datos podemos usar muestreo aleatorio (Por lo general, se divide haciendo “80-20”o "70-30")
+
+- Data train: Estos datos se utilizan para desarrollar conjuntos de características, entrenar el algoritmo, comparar modelos.
+
+- Data test: Estos datos se utilizan para estimar una evaluación imparcial del rendimiento del modelo.
+
+# Desarollo del laboratorio {.tabset}
+
+## Enunciado
+
+Se tiene información sobre ventas de propiedades en EE.UU y se requiere utilizar los atributos de estas propiedades para predecir el precio de venta de la vivienda.
+
+- Tipo de problema: regresión supervisada ($Y$ es númerico)
+- Resultado de interés: `Sale_Price` (en dólares)
+- Características o variables explicativas $X$: 80
+- Observaciones: 2.930
+- Descripción Dataset: https://github.com/hunkim/KaggleZeroToAll/blob/master/k0-03-house-prices-advanced-regression-techniques/data_description.txt
+
+```{r start, message = FALSE, warning=FALSE}
+rm(list=ls())				 #Limpia todos los objetos creados en R
+graphics.off()			 #Limpia los gráficos
+options(digits = 3)  #Dígitos después del punto para observar (décimas, centésimas,...)
+set.seed(12345)      #Fijar semilla de aleatoriedad
+```
+
+### Paquetes
+
+```{r paquetes útiles, message = FALSE, warning=FALSE}
+library(readr)     #Para leer CSV
+library(glmnet)    #Para ajustar modelo lineal
+library(corrplot)  #Para realizar correlogramas
+library(dplyr)     #Para manipulación de datos
+library(ggplot2)   #Para gráficos
+library(caret)     #Para validar y entrenar los modelos
+library(knitr) 
+```
+
+
+### Carga de datos
+
+```{r lectura base}
+Casas <- read.csv("Casas.csv")
+kable(Casas[1:5,1:9]) #kable crea una tabla head(Casas) sirve para visualiar la data
+
+```
+```{r inspección datos, message = FALSE, warning=FALSE}
+#table(Casas$MS_SubClass)
+Casas$MS_SubClass=as.factor(Casas$MS_SubClass)
+Casas$MS_Zoning=as.factor(Casas$MS_Zoning)
+Casas$Alley=as.factor(Casas$Alley)
+Casas$Lot_Shape=as.factor(Casas$Lot_Shape)
+Casas$Land_Contour=as.factor(Casas$Land_Contour)
+Casas$Utilities=as.factor(Casas$Utilities)
+Casas$Lot_Config=as.factor(Casas$Lot_Config)
+Casas$Land_Slope=as.factor(Casas$Land_Slope)
+Casas$Condition_1=as.factor(Casas$Condition_1)
+Casas$Condition_2=as.factor(Casas$Condition_2)
+Casas$Bldg_Type=as.factor(Casas$Bldg_Type)
+Casas$House_Style=as.factor(Casas$House_Style)
+Casas$Overall_Qual=as.factor(Casas$Overall_Qual)
+Casas$Overall_Cond=as.factor(Casas$Overall_Cond)
+Casas$Roof_Style=as.factor(Casas$Roof_Style)
+Casas$Roof_Matl=as.factor(Casas$Roof_Matl)
+Casas$Exterior_1st=as.factor(Casas$Exterior_1st)
+Casas$Exterior_2nd=as.factor(Casas$Exterior_2nd)
+Casas$Mas_Vnr_Type=as.factor(Casas$Mas_Vnr_Type)
+Casas$Exter_Qual=as.factor(Casas$Exter_Qual)
+Casas$Heating=as.factor(Casas$Heating)
+Casas$Heating_QC=as.factor(Casas$Heating_QC)
+
+```
+
+
+### División de los datos
+
+Vamos a escoger 70% entrenamiento y 30% para testeo:
+
+```{r división datos, message = FALSE, warning=FALSE}
+
+# Construimos un vector que esta formado por números de filas aleatoriamente
+index <- sample(1:nrow(Casas), size= nrow(Casas)*0.7)
+# Base de entrenamiento: del total de datos, tomamos las filas aletorizadas que tienen datos en index
+train <- Casas[index, ]
+# Anteponiendo el "-" escogemos las filas en de la base que no están en index 
+test  <- Casas[-index, ]
+```
+
+### EDA
+
+Antes de entrenar un modelo predictivo, o incluso antes de realizar cualquier cálculo con un nuevo conjunto de datos, es muy importante realizar una exploración descriptiva de los mismos. Este proceso permite entender mejor que información contiene cada variable, así como detectar posibles errores.
+
+#### Gráficos
+
+#### Variable de interés
+
+```{r histograma, message = FALSE, warning=FALSE}
+
+ggplot(data=Casas)+ #Se define un gráfico con ggplot()
+  aes(x=Sale_Price)+ #Solo le ingresamos el eje "x" para un histograma
+  geom_histogram(col="black", fill="green", alpha = 0.2) # Se define la forma del gráfico. "col" pinta el contorno, "fill" el entorno y "alpha" entrega transparencia 
+```
+
+```{r histograma 2, message = FALSE, warning=FALSE}
+
+ggplot(data=Casas)+
+  aes(x=log(Sale_Price))+
+  geom_histogram(col="black", fill="green", alpha=0.2)+
+  xlab("Log(Precio de venta)")+ #Etiqueta para el eje x
+  ylab("Frecuencia")+ #Etiqueta para el eje y
+  ggtitle("Distribución log(Precio de venta)")+ #Título del gráfico
+  theme(plot.title = element_text(hjust = 0.5)) #centra el título en el gráfico. Lo ajusta en la posición horizontal (hjust = 0.5)
+```
+ 
+#### Variables explicativas
+
+Escogemos algunas variables: `Year_Built` (Año en que se construyó la casa), `Roof_Style` (Tipo de techo), `Gr_Liv_Area` (espacio habitable total sobre el suelo de una casa) y `Heating_QC`(Calidad y estado de la calefacción)
+
+##### `Year_Built`
+
+```{r Gráfico de dispersión, message = FALSE, warning=FALSE}
+
+library(gridExtra) #Para unir gráficas
+ggplot(Casas) +
+  aes(x=Year_Built, y=Sale_Price) +
+  geom_point(size=1, alpha=0.4) + #"size" aumenta el tamaño de los puntos, "alpha" da transparencia
+  geom_smooth(se=FALSE) + #Agregamos un ajuste no lineal sobre los puntos. "se" integra errores estándares
+  xlab("Año de construcción")
+```
+
+##### `Gr_Liv_Area` según `Heating_QC`
+
+```{r, message = FALSE, warning=FALSE}
+
+ggplot(Casas) +
+  aes(x=Gr_Liv_Area, y=Sale_Price, col=Heating_QC)+ #Se agrega una dimensión de colores "col".
+  geom_point(size=1, alpha=0.4) +
+  geom_smooth(se=FALSE, method="lm") +
+  xlab("Espacio habitable") 
+
+```
+
+##### `Roof_Style`
+
+```{r, message = FALSE, warning=FALSE}
+
+ggplot(Casas) +
+  aes(x=Roof_Style, y=Sale_Price) +
+  geom_boxplot(alpha=0.4, fill="black") #cambiamos el tipo de gráfico
+
+```
+
+## Regresión Lineal
+
+```{r, message = FALSE, warning=FALSE}
+
+train.lm <- train(form = Sale_Price ~ Year_Built+Gr_Liv_Area+Roof_Style+Heating_QC, #Fórmula
+  data = train, #Datos
+  method = "lm", #Algoritmo 
+  trControl = trainControl(method = "cv", number = 10) #Method = cross validation, number=10 (k-fold) 
+)
+
+test.lm  <- predict(train.lm , newdata=test) #Vector de datos predichos. Recibe una base de datos (newdata) y un modelo entrenado (train.lm)
+error.lm <- test$Sale_Price-test.lm #Calcular los errores de predicción (dato real - dato estimado)
+
+```
+
+## MARS
+
+![](3.png)
+
+```{r, message = FALSE, warning=FALSE}
+
+#Ejecutar MARS (Multivariate adaptive regression spline)
+train.mars <- train(form = Sale_Price ~ Year_Built+Gr_Liv_Area+Roof_Style+Heating_QC, 
+                    data=train, 
+                    method="earth", #MARS
+                    trControl = trainControl("cv", number=10),
+                    preProcess = c("center","scale"), #Pre-procesa datos. "center" resta el promedio de las variables, "scale" las divide por la desviación estandar. Esto ayuda para el tratamiento de outliers.
+                    tuneLength = 5 #Indica que pruebe diferentes valores por default para el parámetro principal
+)
+print(train.mars)
+ggplot(train.mars)
+test.mars  <- predict(train.mars, newdata=test) #Vector de datos predichos 
+error.mars <- test$Sale_Price-test.mars #(dato real - dato estimado)
+```
+
+## K-Nearest Neighbors
+
+<img src="https://helloacm.com/wp-content/uploads/2016/03/2012-10-26-knn-concept.png" alt="KNN">
+
+```{r, message = FALSE, warning=FALSE}
+
+### Ejecutar KNN
+train.knn <- train(Sale_Price ~ Year_Built+Gr_Liv_Area+Roof_Style+Heating_QC, 
+                   data=train, method="knn",  
+                   trControl = trainControl("cv", number=10),
+                   preProcess = c("center","scale"),
+                   tuneLength = 5 
+)
+
+print(train.knn)
+ggplot(train.knn)
+test.knn  <- predict(train.knn, newdata=test) 
+error.knn <- test$Sale_Price-test.knn
+```
+
+## CART
+
+![](5.png)
+
+```{r, message = FALSE, warning=FALSE}
+
+### Ejecutar CART (Classification and Regression Trees)
+train.cart <- train(Sale_Price ~ Year_Built+Gr_Liv_Area+Roof_Style+Heating_QC, 
+                    data=train, method="rpart2",  
+                    trControl = trainControl("cv", number=10),
+                    preProcess = c("center","scale"),
+                    tuneLength = 5
+)
+print(train.cart)
+ggplot(train.cart)
+test.cart  <- predict(train.cart, newdata=test)
+error.cart <- test$Sale_Price-test.cart 
+```
+
+## Random Forest
+
+<img src="https://cdn.analyticsvidhya.com/wp-content/uploads/2020/02/rfc_vs_dt1.png" alt="RF ">
+
+```{r, message = FALSE, warning=FALSE}
+
+### Ejecutar Random Forest
+train.randomf <- train(Sale_Price ~ Year_Built+Gr_Liv_Area+Roof_Style+Heating_QC, 
+                       data=train, method="rf",  
+                       trControl = trainControl("cv", number=10),
+                       preProcess = c("center","scale"),
+                       tuneLength = 5 
+)
+print(train.randomf)
+ggplot(train.randomf)
+test.randomf  <- predict(train.randomf, newdata=test) 
+error.randomf <- test$Sale_Price-test.randomf
+```
+
+## Comparación de modelos
+
+```{r, message = FALSE, warning=FALSE}
+
+sales.test <- data.frame(lm=test.lm, mars=unname(test.mars),  knn=test.knn,  cart=test.cart,  rf=test.randomf, sales=test$Sale_Price)
+error.test <- data.frame(lm=error.lm, mars=unname(error.mars), knn=error.knn, cart=error.cart, rf=error.randomf)
+
+summary(abs(error.test))
+summary(error.test)
+boxplot(abs(subset(error.test, select=-lm))); title(main="ML models", sub="Forecasting Absolute Errors")
+boxplot(subset(error.test, select=-lm)); title(main="ML models", sub="Forecasting Errors")
+
+```
+
+## Preguntas
+
+### Pregunta 1
+
+```{r p1}
+#Escoja 10 variables continuas u categóricas (no con tantas categorías)
+#De esas 10, debe argumentar para al menos 3 de ellas porque podrían ser predictoras del precio de la casa. 
+#Construya una base de datos reducida con "Casas <- Casas[,c(x1,x2,x3,...x10)]" 
+# x1,...,x10 son las posiciones de las variables en la base de datos Casas
+```
+
+### Pregunta 2
+
+```{r p2}
+#Corra 1 modelo de regresión lineal y 2 modelos de Machine Learning vistos en la clase con la base de datos reducida,  para predecir el precio de las casas.
+
+```
+
+### Pregunta 3
+
+```{r p3}
+# Comparación de Modelos: Compare los modelos a través de métricas presentadas en el laboratorio. 
+# ¿Cuál es el mejor modelo predictivo?
+
+```

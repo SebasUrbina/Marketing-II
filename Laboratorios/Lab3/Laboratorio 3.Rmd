@@ -1,0 +1,685 @@
+---
+title:  'Laboratorio 3. IN5602 - Semestre Primavera 2021'
+
+output:
+  html_document: 
+    theme: simplex
+    highlight: tango
+  pdf_document: default
+  always_allow_html: true
+  encoding: UTF-8
+---
+
+<div style="text-align: right"> **Universidad de Chile**</div>
+<div style="text-align: right"> **Ingeniería Industrial**</div>
+<div style="text-align: right"> **IN5602**: Marketing II</div>
+<div style="text-align: right">**Prof**: Pedro Arana</div>
+<div style="text-align: right">**Auxs**: R. Cerda, G.Mora, A .Muñoz, R. Tiara</div>
+<div style="text-align: right">**Fecha**: 27 de octubre de 2021</div>
+
+<style type="text/css">
+.main-container {
+  max-width: 90%;
+  margin-left: auto;
+  margin-right: auto;
+}
+body {
+text-align: justify;
+font-family: Helvetica;
+  font-size: 12pt;}
+h1{
+  font-size: 24pt;
+}
+h2{
+  font-size: 20pt;
+}
+h3{
+  font-size: 16pt;
+}
+h4{
+  font-size: 14pt;
+}
+
+table, th, td {
+    font-size: 12px;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+```
+
+# {.tabset}
+
+## **Modelos de Elección Multinomiales**
+
+Supongamos que tenemos datos de panel de individuos ($n$), que en instancias o momentos ($t$) escogen alternativas ($j$). Supongamos que de todas las alternativas siempre se escoge una (podría haber también no-elección). Tenemos una función de utilidad lineal del individuo $n$ por escoger en $t$ la alternativa $j$:
+
+$$U_{ntj}=\underbrace{V_{tj}}_{\textbf{Parte Observable}}+\underbrace{e_{ntj}}_{\textbf{Parte No Observable}}$$
+$$U_{ntj}=\underbrace{\alpha_j+\beta_1X_{1,tj}+...+\beta_kX_{k,tj}+\delta_{1j}Z_{1,n}+...+\delta_{kj}Z_{k,n}+\eta_{1j}W_{1,tj}+...+\eta_{kj}W_{k,tj}}_{\textbf{Parte Observable}}+e_{ntj}$$
+Notar que cada variable $X_{k,tj}$ y $W_{k,tj}$ dependen de la instancia $t$ de la alternativa $j$ (no depende del individuo $n$). $Z_{k,n}$ depende del individuo $n$ (variables sociodemográficas). 
+
+- $\alpha_j$ es una valoración media de escoger la alternativa $j$ respecto de una alternativa base. En resumidas cuentas, es un intercepto de alternativa. Notar que $\alpha_j$ es un intercepto diferente para cada elección $j$ y debe haber una alternativa en que $\alpha_j=0$ de lo contrario no se puede identificar ni estimar el modelo.
+
+- $\beta_k$ es una valoración media asociada a cada nivel de la variable $X_{k,tj}$ en cada instancia $t$ y alternativa $j$. Note que $\beta_k$ es un coeficiente común (no tiene subindice $j$) sobre la variable $X_{k,tj}$ para todas las alternativas.
+
+- $\delta_{kj}$ es una valoración media asociada a la variable $Z_{k,n}$. Estas variables son sociodemográficas (solo varían en $n$ o la persona, pero no por instancia y alternativa). Ejemplos de esta variable puede ser el género de la persona. También debe cumplirse que $\delta_{kj}=0$ para alguna alternativa, de lo contrario no se puede identificar ni estimar el modelo.
+
+- $\eta_{kj}$ es una valoración media asociada a cada nivel de la variable $W_{k,tj}$ en cada instancia $t$ y alternativa $j$. Note que $\eta_{kj}$ es un coeficiente diferente por cada alternativa (tiene subindice $j$) sobre la variable $W_{k,tj}$.
+
+*¿Cuándo se justifica la inclusión de un intercepto por alternativa?*
+
+La inclusión de esto se justifica en que una alternativa $j$ puede tener asociada una valoración intrínseca (ej: la marca). Por el contrario, si las configuraciones de alternativas son diferentes en cada instancia $t$ de elección, no se justifica el agregar los interceptos.
+
+*¿Qué pasa si dentro de las alternativas de elección está el no-elegir?*
+
+En ese caso, se tiene que:
+
+$$U_{ntj}=\underbrace{\alpha_j+\beta_1X_{1,tj}+...+\beta_kX_{k,tj}+\delta_{1j}Z_{1,n}+...+\delta_{kj}Z_{k,n}+\eta_{1j}W_{1,tj}+...+\eta_{kj}W_{k,tj}}_{\textbf{Parte Observable}}+e_{ntj} \hspace{0.5 cm} j \in {1,...,J}$$
+$$U_{nt0}=\gamma+e_{nt0} \hspace{0.5 cm} 0=\text{no-elección}$$
+y $\gamma$ un intercepto para controlar de manera observable la no-elección.
+
+Para conocer que escoge cada persona, lo único que debe calcularse es la diferencia de utilidades:
+
+$$\Delta_{ntji}=U_{ntj}-U_{nti}$$
+Donde $j \neq i$ son dos alternativas distintas. La alternativa escogida es la que reportaría mayor utilidad, es decir la que $\max_{j\neq i}\Delta_{ntji}$. 
+
+Para estimar los coeficientes en $U_{ntj}(\alpha_j, \beta_k, \delta_{kj}, \eta_{kj})$ se deben realizar suposiciones sobre $e_{ntj}$ (parte no observable)
+
+Dado que $e_{ntj}$ es una variable aleatoria asumida con cierta distribución de probabilidad, la idea es estimar la probabilidad de que la persona $n$, en la instancia $t$ escoja la alternativa $j$. En otras palabras, la probabilidad de que $\Delta_{ntji}>0$ (y en ese caso se escoge $j$ por sobre $i$)
+
+$$P_{ntj}(\alpha_j, \beta_k, \delta_{kj}, \eta_{kj})=Prob(U_{ntj}-U_{nti}>0, \hspace{0.3 cm} \forall i\neq j)=Prob(V_{tj}+e_{ntj}-(V_{ti}+e_{nti})>0, \hspace{0.3 cm} \forall i\neq j)$$
+$$P_{ntj}(\alpha_j, \beta_k, \delta_{kj}, \eta_{kj})=Prob(U_{ntj}-U_{nti}>0, \hspace{0.3 cm} \forall i\neq j)=Prob(e_{ntj}-e_{nti}>V_{ti}-V_{tj}, \hspace{0.3 cm} \forall i\neq j)$$
+
+Si se conoce la distribución de probabilidad de $e_{ntj}$ es posible calcular esta probabilidad $P_{ntj}$. 
+
+
+### **Logit**
+
+El modelo Multinomial Logit asume:
+
+$$e_{ntj} \sim Gumbel(0, 1),  \hspace{0.4 cm}  f(e_{ntj}|0,1)=e^{-e^{-(e_{ntj})}}\;\;\; \text{para} \;\; e_{ntj}\in\mathbb R.$$
+Si es así:
+
+$$P_{ntj}(\alpha_j, \beta_k, \delta_{kj}, \eta_{kj})=Prob(U_{ntj}-U_{nti}, \hspace{0.3 cm} \forall i\neq j)= \frac{e^{V_{tj}(\alpha_j, \beta_k, \delta_{kj}, \eta_{kj})}}{\sum_{i=1}^Je^{V_{ti}(\alpha_j, \beta_k, \delta_{kj}, \eta_{kj})}} \hspace{0.2 cm} j \in \{J\}$$
+
+Donde:
+
+$$V_{tj}(\alpha_j, \beta_k, \delta_{kj}, \eta_{kj})=\alpha_j+\beta_1X_{1,tj}+...+\beta_kX_{k,tj}+\delta_{1j}Z_{1,n}+...+\delta_{kj}Z_{k,n}+\eta_{1j}W_{1,tj}+...+\eta_{kj}W_{k,tj}$$
+$$V_{ti}(\alpha_i, \beta_k, \delta_{ki}, \eta_{ki})=\alpha_i+\beta_1X_{1,ti}+...+\beta_kX_{k,ti}+\delta_{1i}Z_{1,n}+...+\delta_{ki}Z_{k,n}+\eta_{1i}W_{1,ti}+...+\eta_{ki}W_{k,ti}$$
+
+De esta manera el Log-Likelihood para la estimación queda:
+
+ $$LL(\alpha_j, \beta_k, \delta_{kj}, \eta_{kj})=\sum_{n=1}^{N}\sum_{t=1}^{T}\left(\sum_{j \in \{J\}} Y_{ntj}*\log \left(P_{ntj}(\alpha_j, \beta_k, \delta_{kj}, \eta_{kj})\right)\right)$$  
+Donde:
+
+$$Y_{ntj}=\begin{cases} 
+      1 & \text{si n en la instancia t escoge j} \\
+     0 & \text{caso contrario} 
+   \end{cases}$$
+
+### **Probit**
+
+El modelo Multinomial Probit asume:
+
+$$e_{ntj} \sim NormalMultivariada(\vec{0}, \Sigma),  \hspace{0.4 cm}  f(e_{ntj}|\vec{\mu}
+,\Sigma) = {\displaystyle {\frac {1}{(2\pi )^{n/2}|\Sigma |^{1/2}}}\exp \left(-{\frac {1}{2}}({e_{ntj}}-\vec{0})^{\top }\Sigma ^{-1}(e_{ntj}-\vec{0})\right)} \hspace{0.2 cm} e_{ntj}\in\mathbb R.$$
+
+Donde $\vec{0}$ es el vector de medias de cada $e_{ntj}$ (se asume media cero) y $\Sigma$ la matriz de varianzas y covarianzas. Desafortunadamente, no hay forma funcional cerrada para evaluar $P_{ntj}(\alpha_j, \beta_k, \delta_{kj}, \eta_{kj})$ bajo esta distribución, por lo que se usa simulated-likelihood (ver cátedras). 
+
+De esta manera el Log-Likelihood para la estimación queda:
+
+$$LL(\alpha_j, \beta_k, \delta_{kj}, \eta_{kj})=\sum_{n=1}^{N}\sum_{t=1}^{T}\left(\sum_{j \in \{J\}} \log\left(\underbrace{\frac{1}{R}\sum_{r \in \{R\}} [P^r_{ntj}(\alpha_j, \beta_k, \delta_{kj}, \eta_{kj})]^{Y_{ntj}}}_{\hat{P}_{ntj}}\right)\right)$$  
+Donde $P^r_{ntj}(\alpha_j, \beta_k, \delta_{kj}, \eta_{kj})]^{Y_{ntj}}$ es la r-ésima simulación de la normal multivariada y $\hat{P}_{ntj}$ es un promedio de todas esas simulaciones.
+
+
+
+### **Latent Class Logit**
+
+El modelo Latent Class Multinomial Logit asume:
+
+$$e_{nmtj} \sim Gumbel(0, 1),  \hspace{0.4 cm}  f(e_{nmtj}|0,1)= e^{-e^{-(e_{nmtj})}}\;\;\; \text{para} \;\; e_{nmtj}\in\mathbb R.$$
+Ahora se agrega un subíndice $m$ a $e_{nmtj}$ para indicar que es la parte no observable de la persona $n$, en la clase $m$, en la instancia $t$, sobre la alternativa $j$: 
+
+En este caso:
+
+$$V_{mtj}(\alpha_{jm}, \beta_{km}, \delta_{kmj}, \eta_{kmj})=\alpha_{mj}+\beta_{1m}X_{1,tj}+...+\beta_{km}X_{k,tj}+\delta_{1mj}Z_{1,n}+...+\delta_{kmj}Z_{k,n}+\eta_{1mj}W_{1,tj}+...+\eta_{kmj}W_{k,tj}$$
+
+En este caso se tienen coeficientes para cada clase. 
+
+$$P_{nmtj}(\alpha_{jm}, \beta_{km}, \delta_{kmj}, \eta_{kmj})=Prob(U_{nmtj}-U_{nmti}, \hspace{0.3 cm} \forall i\neq j)= \frac{e^{V_{tmj}(\alpha_{jm}, \beta_{km}, \delta_{kmj}, \eta_{kmj})}}{\sum_{i=1}^Je^{V_{tmi}(\alpha_{jm}, \beta_{km}, \delta_{kmj}, \eta_{kmj})}} \hspace{0.2 cm} m\in M, j \in \{J\}$$
+
+Además, se tiene la probabilidad de pertenecer a cada clase:
+
+$$s_m(\gamma_m) = \frac{e^{\gamma_m}}{\sum_{q\in M}e^{\gamma_q}}$$
+Donde debe cumplirse que algún $\gamma_q=0$. Note que $\sum_{m\in M}s_m(\gamma_m)=1$.
+
+El Likelihood de cada individuo $n$ en la clase $m$ queda planteado por:
+
+$$L_{nm}(\alpha_{jm}, \beta_{km}, \delta_{kmj}, \eta_{kmj})= \prod_{t=1}^{T}\left(\prod_{j \in \{J\}}[P_{nmtj}(\alpha_{jm}, \beta_{km}, \delta_{kmj}, \eta_{kmj})]^{Y_{ntj}}\right)$$
+El Likelihood de cada individuo $n$ está dado por el likelihood total de clases:
+ 
+ $$L_{n}(\alpha_{jm}, \beta_{km}, \delta_{kmj}, \eta_{kmj}, \gamma_m)=\sum_{m\in M} s_m(\gamma_m)*L_{nm}(\alpha_{jm}, \beta_{km}, \delta_{kmj}, \eta_{kmj})$$
+De esta manera el Log-Likelihood para la estimación queda:
+
+ $$LL(\alpha_{jm}, \beta_{km}, \delta_{kmj}, \eta_{kmj}, \gamma_m)=\sum_{n=1 }^N\log\left(\sum_{m\in M} s_m(\gamma_m)*L_{nm}(\alpha_{jm}, \beta_{km}, \delta_{kmj}, \eta_{kmj}))\right)$$
+ 
+### **Mixed Logit**
+
+En este modelo se sigue asumiendo que:
+
+$$e_{ntj} \sim Gumbel(0, 1),  \hspace{0.4 cm}  f(e_{ntj}|0,1)=e^{-e^{-(e_{ntj})}}\;\;\; \text{para} \;\; e_{ntj}\in\mathbb R.$$
+
+En el modelo Latent Class Logit, asumimos que existen $(\alpha_{jm}, \beta_{km}, \delta_{kmj}, \eta_{kmj})$ para cada clase $m$ (hay segmentos de individuos). A aquello se le llama integrar heterogeneidad discreta no observable sobre los coeficientes. Pero esto se puede extender continuamente (cada individuo es su clase) y a eso se le llama Mixed Logit. Ahora todos los $n$ tienen su propio $(\alpha_{jn}, \beta_{kn}, \delta_{knj}, \eta_{knj})$. Para esto suponemos una distribución sobre los coeficientes:
+
+$$(\alpha_{jn}, \beta_{kn}, \delta_{knj}, \eta_{knj}) \sim NormalMultivariada(\vec{\gamma},\Sigma)$$
+
+La función de probabilidad queda determinada por:
+
+$$P_{ntj}(\vec{\gamma},\Sigma)= \int_{(\alpha_{jn}, \beta_{kn}, \delta_{knj}, \eta_{knj})} \frac{e^{V_{tj}(\alpha_j, \beta_k, \delta_{kj}, \eta_{kj})}}{\sum_{i=1}^Je^{V_{ti}(\alpha_j, \beta_k, \delta_{kj}, \eta_{kj})}}*NormalMultivariada(\vec{\gamma},\Sigma) *d(\alpha_j, \beta_k, \delta_{kj}, \eta_{kj}) \hspace{0.2 cm} j \in \{J\}$$
+
+donde $d(\alpha_j, \beta_k, \delta_{kj}, \eta_{kj})$ representa el diferencial de la integral vectorial
+
+Desafortunadamente, no hay forma funcional cerrada para evaluar $P_{ntj}(\vec{\gamma},\Sigma)$ bajo este planteamiento, por lo que se usa simulated-likelihood (ver cátedras). 
+
+De esta manera el Log-Likelihood para la estimación queda:
+
+$$LL(\vec{\gamma},\Sigma)=\sum_{n=1}^{N}\sum_{t=1}^{T}\left(\sum_{j \in \{J\}} \log\left(\underbrace{\frac{1}{R}\sum_{r \in \{R\}} [P^r_{ntj}(\vec{\gamma}^r,\Sigma^r)]^{Y_{ntj}}}_{\hat{P}_{ntj}}\right)\right)$$  
+Donde $P^r_{ntj}(\vec{\gamma^r},\Sigma^r)]^{Y_{ntj}}$ es la r-ésima simulación de la normal multivariada y $\hat{P}_{ntj}$ es un promedio de todas esas simulaciones.
+
+
+
+## **Caso de Estudio**
+
+### **Venta de Zapatillas**
+
+Conocer las preferencias de las y los consumidores es fundamental. En base a dicha información se pueden tomar distintas decisiones tales como diseño de productos y promociones personalizadas. 
+
+En este contexto, se le ha encomendado la misión de entender las preferencias de las personas al comprar zapatillas. Para esto usted cuenta con datos de una investigación que utilizó la metodología de análisis conjunto (choice-based conjoint analysis). En particular, en el experimento se invitó a 400 personas a contestar una encuesta donde se les pedía escoger entre tres distintas zapatillas con ciertas características (precio, calidad y moda) asociadas a marcas o decidir no escoger ninguna (no-elección). Ese procedimiento se repetía en 8 instancias para cada persona encuestada.
+
+La base de datos “EleccionMarcas.csv” contiene toda la información del experimento llevado a cabo por la empresa, incluyendo un identificador para la persona, el número de instancias que la persona se enfrentó a la decisión, las características del producto, las características sociodemográficas de las personas y la elección de la persona en cada instancia.
+
+```{r, echo=FALSE, warning=FALSE}
+text_tbl <- data.frame(
+Variable = c("ID", "TIME", "BRAND", "CHOICE", "FASH", "QUAL", "PRICES", "FEMALE", "AGE25", "AGE39","AGE40"),
+Descripción = c("Identificador del usuario {1,…,400}", "Instancia de decisión {1,…,8}", "Identificador de Marca {1,2,3,4}, 4 significa no-elección", "Alternativa elegida (0 = no, 1 = sí)", "Moda (0 = no está de moda, 1 = sí lo está)", "Calidad (0 = baja, 1 = alta)","Precios escalados ($1/Millón): 0.04, 0.08, 0.12, 0.16, 0.20", "Mujer (0= no, 1 sí)", "Edad menor de 25 años (0 = no, 1 = sí)", "Edad entre 25 a 39 años (0 = no, 1 = sí)", "Edad mayor de 40 años (0 = no, 1 = sí)")
+)
+
+kable(text_tbl, "html", booktabs = T) %>%
+kable_styling(full_width = F) %>%
+column_spec(1, bold = T, color = "black") %>%
+column_spec(2, width = "30em")
+
+```
+
+
+### **Datos**
+
+Se presenta una vista previa de la base de datos. Cabe hacer notar que esta base de datos, contiene un panel de personas (ID), un panel de tiempo (TIME) y un panel de alternativas (BRAND). 
+
+```{r start, message = FALSE, warning=FALSE}
+rm(list=ls())	 # Limpiamos todos los objetos creados en R
+graphics.off() # Limpiamos los gráficos
+
+set.seed(12345) #fijar semilla de aleatoriedad
+setwd("E:/Sebas/Escritorio/2021-2/Marketing II/Lab3") #fijar directorio de preferencia
+
+library(readr) #librería para abrir archivos .csv
+Zapatillas=as.data.frame(read_csv("EleccionMarcas.csv"))
+
+library(knitr) #Librería para mostrar objetos en Rmarkdown
+kable(Zapatillas[1:10,], format = "markdown") #Mostramos la base de datos
+```
+
+## **Códigos de R**
+
+### **Formato Long y Wide**
+
+Para manejar bases de datos relacionadas a elecciones, es necesario entender la bases de datos en formato long y wide. 
+
+Una base de datos de tipo long se tiene cuando los paneles (en este caso, las personas, los tiempos y la alternativas de elección) se extienden "a lo largo" (filas) de la base de datos y las covariables son señalizadas por una sola columna. Actualmente la base de datos tiene este formato. 
+
+```{r Long, message=FALSE, warning=FALSE}
+library(knitr) #Librería para mostrar objetos en Rmarkdown
+kable(Zapatillas[1:10,], format = "markdown") #Mostramos la base de datos
+```
+
+Una base de datos de tipo wide se tiene cuando hay un panel (de los tres que hay en la base) que se extiende "en lo ancho" (columnas) de la base de datos y las covariables son señalizadas por varias columnas de acuerdo al panel extendido en lo ancho. Generalmente, se extiende el panel de la alternativas de elección (BRAND) en lo ancho. Para hacer aquello utilizamos el siguiente código. 
+
+```{r Wide, message=FALSE, warning=FALSE}
+library(reshape2) #cargamos el paquete que formatea datos en long y wide
+
+Zapatillas_wide <- reshape(data=Zapatillas, #Se señaliza la base de datos
+                             idvar=c("id","time"), # Nombre de los paneles que NO se extienden en lo ancho
+                    v.names=c("choice","fash","qual","price","female","age25","age39","age40"), # Nombre de variables a extender en lo ancho según el panel
+                             timevar = "brand", # Nombre del panel extendido en lo ancho
+                             direction="wide") # Se señaliza Wide
+
+library(knitr) #Librería para mostrar objetos en Rmarkdown
+kable(Zapatillas_wide[1:10,1:25], format = "markdown") #Mostramos la base de datos
+```
+
+### **Dividiendo la base de datos**
+
+Dado que conocemos los formatos long o wide, lo siguiente que hacemos es dividir la base de datos en un conjunto de entrenamiento de un modelo (ajuste) y de testeo de un modelo (predicción). La proporción de división queda definida por la variabilidad que se puede obtener. Con un gran conjunto de datos, puede ser 50% (entrenamiento) y 50% (testeo). De lo contrario, puede ser simplemente 70% y 30%, respectivamente. 
+
+**Para dividir una base de datos se sugiere utilizar la base de datos en formato wide**
+
+Hay dos formas válidas para dividir las bases de datos. La primera forma es dividir secuencialmente la base de datos. Como son 8 instancias en las que decide cada persona, el 70% son 6 instancias aproximadamente. Esto se hace con:
+
+```{r DivisionSecuencial, message=FALSE, warning=FALSE}
+#Base de entrenamiento (70%)
+Zapatillas_entrenamiento_wide <- subset(Zapatillas_wide, Zapatillas_wide$time<7) 
+
+#Base de testeo (30%)
+Zapatillas_testeo_wide <- subset(Zapatillas_wide , Zapatillas_wide $time>=7) 
+```
+
+La segunda forma es dividir aleatoriamente la base de datos: 
+
+```{r DivisionAleatoria, message=FALSE, warning=FALSE}
+#Base de entrenamiento (70%)
+Zapatillas_entrenamiento_wide <- Zapatillas_wide %>% #Tomamos la base de datos en wide
+                                        group_by(id) %>% #La agrupamos por persona
+                                        sample_frac(0.7) # Tomamos el 70% de la agrupación
+
+#Base de testeo (30%)
+Zapatillas_testeo_wide <- anti_join(Zapatillas_wide, Zapatillas_entrenamiento_wide, by = c("id", "time")) #anti_join() retorna las filas que están en Zapatillas_wide pero no en Zapatillas_entrenamiento_wide
+```
+
+### **Formateando la base de datos**
+
+Para aplicar modelos de elección multinomial utilizamos dos funciones en R. La primera es mlogit() y la segunda es gmnl(). mlogit() pertenece al package _mlogit_ y gmnl() pertenece al package _gmnl_.
+
+Ambas funciones necesitan que se les indique una base de datos formateada con la función mlogit.data() de lo contrario los comandos señalizan un error. La función mlogit.data() pertenece al package _mlogit_.
+
+La función mlogit.data() necesita una base de datos formateada en long o wide. **Se sugiere usa las bases en formato wide**. Si se utiliza las bases de datos en formato wide, mlogit.data() necesita que las bases tenga una sola columna que indique el número de la elección (en este caso: 1, 2, 3 y 4):  
+
+```{r columnaeleccion, message=FALSE, warning=FALSE}
+
+library(mlogit) #llamamos a la librería mlogit
+
+#Construimos la columna que tenga las elecciones realizadas en la base de entrenamiento
+
+Zapatillas_entrenamiento_wide$choice=max.col(cbind(Zapatillas_entrenamiento_wide$choice.1, Zapatillas_entrenamiento_wide$choice.2, Zapatillas_entrenamiento_wide$choice.3, Zapatillas_entrenamiento_wide$choice.4))
+
+#Eliminamos las columnas "choice." en entrenamiento
+
+Zapatillas_entrenamiento_wide = Zapatillas_entrenamiento_wide %>% select(-contains("choice."))
+
+#Construimos la columna que tenga las elecciones realizadas en la base de testeo
+
+Zapatillas_testeo_wide$choice=max.col(cbind(Zapatillas_testeo_wide$choice.1, Zapatillas_testeo_wide$choice.2, Zapatillas_testeo_wide$choice.3, Zapatillas_testeo_wide$choice.4))
+
+#Eliminamos las columnas "choice." en testeo
+
+Zapatillas_testeo_wide = Zapatillas_testeo_wide %>% select(-contains("choice."))
+```
+
+Ahora bien, tenemos un problema. Las funciones para estimar modelos de elección mlogit() y gmnl() necesitan las bases con formato mlogit.data() pero, por alguna razón, quienes diseñaron gmnl() la hicieron compatible con una versión antigua de mlogit.data() diferente a la actual. Por lo que se debe tomar en cuenta eso. 
+
+Para esto crearemos bases de datos para utilizar ambas funciones: 
+
+```{r mlogit, message=FALSE, warning=FALSE}
+
+################BASES PARA UTILIZAR mlogit()
+
+library(mlogit) #llamamos a la librería mlogit
+
+#Utilizamos mlogit.data() sobre la base entrenamiento
+
+Zapatillas_entrenamiento_mlogit = mlogit.data(Zapatillas_entrenamiento_wide, #indicamos la base de datos
+                                   shape="wide", #indicamos el formato de la base
+                                   varying=3:30, #indicamos las columnas de covariables
+                                   sep=".", #indicamos el separador sobre alternativas
+                                   choice="choice", #indicamos la variable elección
+                                   id = c("id", "time")) #indicamos los otros paneles
+
+#Utilizamos mlogit.data() sobre la base testeo
+
+Zapatillas_testeo_mlogit = mlogit.data(Zapatillas_testeo_wide, #indicamos la base de datos
+                                   shape="wide", #indicamos el formato de la base
+                                   varying=3:30, #indicamos las columnas de covariables
+                                   sep=".", #indicamos el separador sobre alternativas
+                                   choice="choice", #indicamos la variable elección
+                                   id = c("id", "time")) #indicamos los otros paneles
+
+################BASES PARA UTILIZAR gmnl()
+
+library(devtools)
+install_bitbucket("mauricio1986/gmnl")
+
+library(gmnl)
+
+Zapatillas_entrenamiento_gmnl = mlogit.data(Zapatillas_entrenamiento_wide, #indicamos la base de datos
+                                   shape="wide", #indicamos el formato de la base
+                                   varying=3:30, #indicamos las columnas de covariables
+                                   sep=".", #indicamos el separador sobre alternativas
+                                   choice="choice", #indicamos la variable elección
+                                   id = c("id", "time")) #indicamos los otros paneles
+
+Zapatillas_testeo_gmnl = mlogit.data(Zapatillas_testeo_wide, #indicamos la base de datos
+                                   shape="wide", #indicamos el formato de la base
+                                   varying=3:30, #indicamos las columnas de covariables
+                                   sep=".", #indicamos el separador sobre alternativas
+                                   choice="choice", #indicamos la variable elección
+                                   id = c("id", "time")) #indicamos los otros paneles
+```
+
+### **No-Elección**
+
+En general esto no es necesario, pero dado que el enunciado nos indica que las personas pueden no elegir zapatilla de todas las alternativas, todas las covariables se anulan ($price=0$, $fash=0$ y $qual=0$). Para controlar esto dentro de un modelo debemos crear un intercepto que indique particularmente la opción 4 (no-elección)
+
+```{r noeleccion, message=FALSE, warning=FALSE}
+################BASES PARA UTILIZAR mlogit()
+
+Zapatillas_entrenamiento_mlogit$nochoice= ifelse(Zapatillas_entrenamiento_mlogit$alt==4, 1, 0)
+
+Zapatillas_testeo_mlogit$nochoice = ifelse(Zapatillas_testeo_mlogit$alt==4, 1, 0)
+  
+################BASES PARA UTILIZAR gmnl()
+
+Zapatillas_entrenamiento_gmnl$nochoice = ifelse(Zapatillas_entrenamiento_gmnl$alt==4, 1, 0)
+
+Zapatillas_testeo_gmnl$nochoice = ifelse(Zapatillas_testeo_gmnl$alt==4, 1, 0)
+```
+
+### **Estimación de modelos**
+
+*mlogit() puede estimar modelos Logit, Probit y Mixed Logit, pero no Latent Class Logit.* 
+
+*gmnl() puede estimar modelos Logit, Latent Class Logit y Mixed Logit, pero no Probit.* 
+
+La sintaxis del comando de ambos es parecida pero no idéntica. 
+
+#### Logit
+
+Para estimar un modelo Logit solo se debe utilizar:
+
+```{r logit, message=FALSE, warning=FALSE, eval=FALSE}
+################mlogit()
+
+model = mlogit(choice ~ X1 + X2 | Z | W1 + W2, data = BDentrenamiento)
+
+################gmnl()
+model = gmnl(choice ~ X1 + X2 | Z | W1 + W2| 0 | 0, model = 'mnl' , data = BDentrenamiento)
+
+```
+
+Básicamente, la variable "choice" indica cual alternativa se escoge (variable dependiente).
+
+"X1" y "X2" son variables que varían por alternativa pero que tienen coeficientes $\beta_{k}$ homogéneos entre las alternativas. "Z" es una variable sociodemográfica (varía solo sobre la unidad) que tienen coeficientes $\delta_{kj}$ heterogéneos entre las alternativas. "W1" y "W2" son variables que varían por alternativa pero que tienen coeficientes $\eta_{kj}$ heterogéneos entre las alternativas. Todas las anteriores son variables independientes.
+
+En gmnl() el argumento "model" indica "mnl" que significa "Multinomial Logit Model". 
+
+#### Probit (solo mlogit)
+
+Para estimar un modelo Probit solo se debe utilizar:
+
+```{r probit, message=FALSE, warning=FALSE, eval=FALSE}
+model = mlogit(choice ~ X1 + X2 | Z | W1 + W2, data = BDentrenamiento , seed = 20, R = 100, probit = TRUE)
+```
+
+En este caso, se integra al comando mlogit() el argumento "seed" que indica la semilla de aletaorización fija, "R" que indica el número de simulaciones y "probit" que indica al comando estimar un probit. 
+
+#### Latent Class Logit (solo gmnl)
+
+Para estimar un modelo Latent Class Logit solo se debe utilizar:
+
+```{r LC, message=FALSE, warning=FALSE, eval=FALSE}
+model = gmnl(choice ~  X1 + X2 | Z | W1 + W2 | 0 | 1 , data = BDentrenamiento, model = 'lc', Q = 3)
+```
+
+En este caso, se integra al comando gmnl() el argumento "model" con "lc" que significa "Latent Class" y el argumento "Q" que es el número de clases del modelo. 
+
+#### Mixed Logit 
+
+Para estimar un modelo Mixed Logit solo se debe utilizar:
+
+```{r mixed, message=FALSE, warning=FALSE, eval=FALSE}
+################mlogit()
+
+model = mlogit(choice ~ X1 + X2 | Z | W1 + W2, 
+              data = BDentrenamiento,
+              rpar= c(X1 = "n", X2 = "n"), 
+              R = 100, 
+              halton = NA, 
+              correlation = TRUE)
+
+################gmnl()
+
+model <- gmnl(choice ~ X1 + X2 | Z | W1 + W2, 
+                 data = BDentrenamiento,
+                 model = 'mixl',
+                 R = 100,
+                 ranp = c(X1 = "n", X2 = "n"),
+                 correlation = TRUE,
+                 haltons = NA)
+```
+
+Para este caso, en el comando mlogit(), se integra "rpar" que indica que distribución toman los coeficientes. Por ejemplo X1 = "n" indica que el coeficiente de X1 distribuye normal con alguna media y alguna varianza a estimar. Existen otras distribuciones que pueden tomar los coeficientes (ver documentación de mlogit). El argumento "halton=NA" permite que la estimación sea computacionalmente eficiente. Por último, el argumento "correlation" indica si la matriz de varianza y covarianzas de los coeficientes por estimar admite covarianzas o no. 
+
+El comando gmnl() en lo único que se diferencia es incluir el argumento "model" que es "mixl" que significa "Mixed Logit"
+
+### **Predicción de modelos**
+
+Para realizar predicciones con un modelo de elección, se deben hacer diferencias. El comando mlogit() es compatible con el comando predict(). Por lo que predecir se reduce solo a:
+
+```{r predictmlogit, message=FALSE, warning=FALSE, eval=FALSE}
+predictmodel = predict(model, newdata = BDtesteo)
+
+#¿Qué alternativa escoge cada persona?: La que tenga mayor probabilidad
+
+predictmodel = as.matrix(max.col(predictmodel))  #vector que contiene la alternativa con mayor probabilidad (la más probable a escoger) para cada persona en cada instancia de decisión
+```
+
+El objeto "predictmodel" guardara las probabilidades de elección de cada alternativa para cada persona e instancia. 
+
+Sin embargo gmnl() no es compatible con predict() y tampoco existe una función que calcule las probabilidades con gmnl(). Por lo tanto, la predicción se debe programar a mano. Dado que Latent Class es el único modelo que no tiene predicción (porque solo se estima con gmnl), se proporciona un código para predicción con un modelo de dos clases latente que puede ser fácilmente extendible a más clases:
+
+```{r predictLC, message=FALSE, warning=FALSE, eval=FALSE}
+
+#### Predicción Latent Class con 2 clases
+
+unot = cbind(Zapatillas_entrenamiento_wide$fash.1,Zapatillas_entrenamiento_wide$qual.1,Zapatillas_entrenamiento_wide$price.1)
+dost = cbind(Zapatillas_entrenamiento_wide$fash.2,Zapatillas_entrenamiento_wide$qual.2,Zapatillas_entrenamiento_wide$price.2)
+trest = cbind(Zapatillas_entrenamiento_wide$fash.3,Zapatillas_entrenamiento_wide$qual.3,Zapatillas_entrenamiento_wide$price.3)
+cuatrot = cbind(Zapatillas_entrenamiento_wide$fash.4,Zapatillas_entrenamiento_wide$qual.4,Zapatillas_entrenamiento_wide$price.4)
+
+expUunotC1 = exp(unot %*% coefficientsC1) # exponential de la utilidad por alternativa 1 en la clase 1 
+expUdostC1  = exp(dost  %*% coefficientsC1) # exponential de la utilidad por alternativa 2 en la clase 1  
+expUtrestC1  = exp(trest  %*% coefficientsC1) # exponential de la utilidad por alternativa 3 en la clase 1 
+expUcuatrotC1 = exp(cuatrot %*% coefficientsC1) #exponential de la utilidad por alternativa 4 en la clase 1 
+
+expUunotC2 = exp(unot %*% coefficientsC2) # exponential de la utilidad por alternativa 1 en la clase 2 
+expUdostC2  = exp(dost %*% coefficientsC2) # exponential de la utilidad por alternativa 2 en la clase 2  
+expUtrestC2  = exp(trest %*% coefficientsC2) # exponential de la utilidad por alternativa 3 en la clase 2 
+expUcuatrotC2 = exp(cuatrot %*% coefficientsC2) #exponential de la utilidad por alternativa 4 en la clase 2 
+
+denomC1 = expUunotC1+expUdostC1+expUtrestC1+expUcuatrotC1	# Suma de las utilidades exponenciadas, clase 1
+denomC2 = expUunotC2+expUdostC2+expUtrestC2+expUcuatrotC2	# Suma de las utilidades exponenciadas, clase 2
+
+PrunotC1 = expUunotC1 / denomC1	# Probabilidad de elegir alternativa 1, en la clase 1			
+PrdostC1 = expUdostC1 / denomC1	# Probabilidad de elegir alternativa 2, en la clase 1
+PrtrestC1 = expUtrestC1 / denomC1	# Probabilidad de elegir alternativa 3, en la clase 1
+PrcuatrotC1 = expUcuatrotC1 / denomC1	# Probabilidad de elegir alternativa 4, en la clase 1				
+
+PrunotC2 = expUunotC2 / denomC2 # Probabilidad de elegir alternativa 1, en la clase 2		
+PrdostC2 = expUdostC2 / denomC2 # Probabilidad de elegir alternativa 2, en la clase 2			
+PrtrestC2 = expUtrestC2 / denomC2 # Probabilidad de elegir alternativa 3, en la clase 2		
+PrcuatrotC2 = expUcuatrotC2 / denomC2	# Probabilidad de elegir alternativa 4, en la clase 2
+
+pclase1 = exp(coefficientclass1)/(exp(0)+exp(coefficientclass1)) #Probabilidad de pertenecer a la clase 1
+pclase2 = exp(0)/(exp(0)+exp(coefficientclass1)) #Probabilidad de pertenecer a la clase 2
+
+PrunotC = pclase1*PrunotC1+pclase2*PrunotC2	# Probabilidad total de elegir alternativa 1
+PrdostC = pclase1*PrdostC1+pclase2*PrdostC2	# Probabilidad total de elegir alternativa 2
+PrtrestC = pclase1*PrtrestC1+pclase2*PrtrestC2 # Probabilidad total de elegir alternativa 3
+PrcuatrotC = pclase1*PrcuatrotC1+pclase2*PrcuatrotC2 # Probabilidad total de elegir alternativa 4
+
+#Matriz de probabilidades tal como las devuelve predict()
+predictmodel = as.matrix(cbind(PrunotC,PrdostC,PrtrestC,PrcuatrotC))
+
+predictmodel = as.matrix(max.col(predictmodel))  #vector que contiene la alternativa con mayor probabilidad (la más probable a escoger) para cada persona en cada instancia de decisión
+```
+
+En este código:
+
+- "Covariable" es una matriz con las covariables del modelo (X1, X2, X3, etc) de la base de testeo.
+
+- "coefficientsCX" es un vector con los coeficientes estimados de la clase "X", deben estar en el mismo orden que las columnas de las variables en "Covariable"
+
+- "coefficientclass1" es el intercepto que determina la probabilidad de la clase 1. 
+
+### **Comparación de modelos**
+
+#### Ajuste
+
+Para comparar los modelos desde el ajuste, basta obtener las métricas de AIC y BIC. El modelo que tenga menores AIC y BIC es el mejor. Para esto se utiliza las funciones AIC() y BIC(). En caso de no poder utilizar AIC() y BIC() con modelos estimados por mlogit() puede computarlo manualmente, solo necesita el valor de la log-likelihood que proporciona tanto mlogit() como gmnl(). 
+
+```{r AICBIC, message=FALSE, warning=FALSE, eval=FALSE}
+
+#Por comando
+AIC(model)
+BIC(model)
+
+#Manualmente
+AIC = -2*(-valueLogLike) + 2*npar					
+BIC = -2*(-valueLogLike) + npar*log(n)	
+```
+
+En la forma manual, "valueLogLike" es el valor de Log-Likelihood que retorna los modelos estimados, "npar" es el número de parámetros estimados en el modelo y "n" es el número de datos utilizados en la estimación. 
+
+#### Predicción
+
+Para comparar los modelos desde la predicción, se utiliza la matriz de confusión. En simple, esta es una matriz cuadrada que indica cuántas veces la elección real en una base de datos de test es igual a lo que el modelo sobre la base de test predijo como elección: 
+
+```{r MatrizConfusion, message=FALSE, warning=FALSE, eval=FALSE}
+
+#Calculo manual de la Matriz de Confusión
+true_choice = BDtesteo$choice #verdadera elección (real)
+true_choice = as.factor(true_choice) #verdadera elección como factor
+predictmodel = as.factor(predictmodel) #predicciones de un modelo como factor
+predictmodel <- factor(predictmodel , levels = c("1","2","3","4")) #marcamos las 4 o J alternativas que existan (según el modelo)
+MatrizConf = table(true_choice , predictmodel) #Creamos la matriz
+MatrizConf
+```
+
+## **Laboratorio**
+
+Para cada pedido, se proporciona indicaciones.
+
+### **Multinomial Logit**
+
+Estime un modelo Logit e interprete los coeficientes con tal de entender qué valoran las personas a la hora de evaluar la elección de compra de una zapatilla. Realice predicciones con su modelo Logit.
+
+```{r MLogit, message=FALSE, warning=FALSE}
+
+##### ESTIMACIÓN
+
+## Use mlogit() para estimar el modelo
+
+# MLogit=mlogit(choice ~ .., data = Zapatillas_entrenamiento_mlogit)
+
+#####PREDICCIÓN 
+
+## Use predict() para predecir
+
+# predictMLogit = predict(MLogit, newdata = Zapatillas_testeo_mlogit)
+# predictMlogit = as.matrix(max.col(predictMLogit)) 
+
+```
+
+### **Multinomial Probit**
+
+Estime un modelo Probit e interprete los coeficientes con tal de entender qué valoran las personas a la hora de evaluar la elección de compra de una zapatilla. Realice predicciones con su modelo Probit.
+
+```{r MProbit, message=FALSE, warning=FALSE}
+
+##### ESTIMACIÓN
+
+## use mlogit() para estimar el modelo
+
+# MProbit = mlogit(choice ~ .., data = Zapatillas_entrenamiento_mlogit, seed=20, R=50, probit=TRUE)
+
+#####PREDICCIÓN 
+
+## Use predict() para predecir
+
+# predictMProbit = predict(MProbit, newdata = Zapatillas_testeo_mlogit)
+# predictMProbit = as.matrix(max.col(predictMProbit)) 
+
+```
+
+### **Multinomial Latent Class Logit**
+
+Estime un modelo Latent Class Logit de dos clases e interprete los coeficientes de cada clase con tal de entender qué valoran las personas a la hora de evaluar la elección de compra de una zapatilla. Realice predicciones con su modelo Latent Class Logit.
+
+```{r MLCLogit, message=FALSE, warning=FALSE}
+
+##### ESTIMACIÓN
+
+## Use gmnl() para estimar el modelo
+
+# MLCLogit = gmnl(choice ~  ... , data = Zapatillas_entrenamiento_gmnl, model = 'lc', Q = 2)
+
+#####PREDICCIÓN 
+
+## Utilice el código proporcionado en "Códigos de R" para predecir. 
+```
+
+### **Multinomial Mixed Logit**
+
+Estime un modelo Mixed Logit e interprete los coeficientes con tal de entender qué valoran las personas a la hora de evaluar la elección de compra de una zapatilla. Realice predicciones con su modelo Mixed Logit.
+
+```{r MMLogit, message=FALSE, warning=FALSE}
+##### ESTIMACIÓN
+
+## use mlogit() para estimar el modelo
+
+# MMLogit = mlogit(choice ~ ..., 
+#              data = Zapatillas_entrenamiento_mlogit,
+#              rpar= ..., 
+#              R = 100, 
+#              halton = NA, 
+#              correlation = TRUE
+
+#####PREDICCIÓN 
+
+## Use predict() para predecir
+
+# predictMMLogit = predict(MMLogit, newdata = Zapatillas_testeo_mlogit)
+# predictMMLogit = as.matrix(max.col(predictMMLogit)) 
+```
+
+### **Comparación de Modelos**
+
+Compare los modelos antes estimados desde el ajuste y la predición. Compare el ajuste de los modelos con las métricas AIC y BIC, indique cuál es el mejor modelo. Compare la predicción de los modelos usando la matriz de confusión, indique cuál es el modelo con mejor predictibilidad.  
+
+```{r Comparacion, message=FALSE, warning=FALSE}
+
+#####AJUSTE
+
+##Calcule manualmente para cada modelo:
+
+#AIC = -2*(-valueLogLike) + 2*npar					
+#BIC = -2*(-valueLogLike) + npar*log(n)	
+
+#Para ello utilice los outputs de estimacione: MLogit, MProbit, MLCLogit, MMLogit.
+
+#####PREDICCIÓN
+
+# true_choice = Zapatillas_testeo_mlogit$choice
+# true_choice = as.factor(true_choice)
+
+# Utilice predictMLogit, predictMProbit, predictMLCLogit y predictMMLogit para calcular.
+
+# MatrizConfMLogit = table(true_choice , predictMLogit) 
+# MatrizConfMProbit = table(true_choice , predictMProbit) 
+# MatrizConfMLCLogit = table(true_choice , predictMLCLogit) 
+# MatrizConfMMLogit = table(true_choice , predictMMLogit) 
+
+```

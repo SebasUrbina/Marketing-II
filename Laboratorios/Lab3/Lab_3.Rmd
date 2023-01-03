@@ -1,0 +1,451 @@
+---
+title:  'Laboratorio 3. IN5602 - Semestre Primavera 2021'
+
+
+output:
+  html_document: 
+    theme: simplex
+    highlight: tango
+  pdf_document: default
+  always_allow_html: true
+  encoding: UTF-8
+---
+
+<div style="text-align: left"> **Universidad de Chile**</div>
+<div style="text-align: left"> **Ingeniería Industrial**</div>
+<div style="text-align: left"> **IN5602**: Marketing II</div>
+<div style="text-align: left">**Prof**: Pedro Arana</div>
+<div style="text-align: left">**Auxs**: R. Cerda, G.Mora, A .Muñoz, R. Tiara</div>
+<div style="text-align: left">**Nombre**: **Sebastián Urbina**</div>
+<div style="text-align: left">**Fecha**: 12 de noviembre de 2021</div>
+
+<style type="text/css">
+.main-container {
+  max-width: 90%;
+  margin-left: auto;
+  margin-right: auto;
+}
+body {
+text-align: justify;
+font-family: Helvetica;
+  font-size: 12pt;}
+h1{
+  font-size: 24pt;
+}
+h2{
+  font-size: 20pt;
+}
+h3{
+  font-size: 16pt;
+}
+h4{
+  font-size: 14pt;
+}
+
+table, th, td {
+    font-size: 12px;
+}
+</style>
+
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
+rm(list=ls())
+graphics.off()
+set.seed(1234)
+```
+
+
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
+library(readr)
+library(dplyr)
+library(knitr)
+```
+# **Laboratorio**
+
+## **Pre procesamiento**
+
+```{r data, message=FALSE}
+#Cargamos la data
+
+Zapatillas <- as.data.frame(read_csv('EleccionMarcas.csv'))
+```
+Transformamos la data a tipo wide.
+
+```{r data wide}
+library(reshape2)
+#Transformamos los datos a Wide
+
+Zapatillas_wide <- reshape(data=Zapatillas, 
+                           idvar=c('id','time'),
+                           v.names=c('choice','fash','qual','price','female','age25','age39','age40'),
+                           timevar='brand',
+                           direction='wide')
+
+```
+
+Dividimos los datos aleatoriamente por cada individuo(id) en 70% entrenamiento y 30% para testeo.
+
+```{r dividir data}
+#Dividir entrenamiento
+
+Zapatillas_entrenamiento_wide <- Zapatillas_wide %>% group_by(id) %>% sample_frac(.7)
+
+#Dividir testeo(complemento)
+
+Zapatillas_testeo_wide <- anti_join(Zapatillas_wide, Zapatillas_entrenamiento_wide, by=c('id','time'))
+
+
+```
+
+Luego procedemos a formatear la data para utilizar las funciones de R.
+
+```{r formatear data 1, warning=FALSE, message=FALSE}
+library(mlogit)
+
+Zapatillas_entrenamiento_wide$choice <- max.col(cbind(Zapatillas_entrenamiento_wide$choice.1,
+                                                      Zapatillas_entrenamiento_wide$choice.2,
+                                                      Zapatillas_entrenamiento_wide$choice.3,
+                                                      Zapatillas_entrenamiento_wide$choice.4))
+
+#Se eliminan las columnas "choice..."
+
+Zapatillas_entrenamiento_wide <- Zapatillas_entrenamiento_wide %>% select(-contains("choice."))
+
+#Hacemos lo mismo con la data de testeo
+Zapatillas_testeo_wide$choice <- max.col(cbind(Zapatillas_testeo_wide$choice.1, 
+                                               Zapatillas_testeo_wide$choice.2, 
+                                               Zapatillas_testeo_wide$choice.3, 
+                                               Zapatillas_testeo_wide$choice.4))
+
+
+Zapatillas_testeo_wide <- Zapatillas_testeo_wide %>% select(-contains("choice."))
+```
+
+
+Formateamos la data con ```mlogit.data()`` para utilizarla posteriormente.
+```{r formatear data, warning=FALSE, message=FALSE}
+#Formateamos la data de entrenamiento para usarla con mlogit()
+Zapatillas_entrenamiento_mlogit <- mlogit.data(Zapatillas_entrenamiento_wide,
+                                               shape='wide',
+                                               varying=3:30,
+                                               sep='.',
+                                               choice='choice',
+                                               id=c('id','time'))
+#Formateamos la data de testeopara usarla con mlogit()
+Zapatillas_testeo_mlogit <- mlogit.data(Zapatillas_testeo_wide,
+                                               shape='wide',
+                                               varying=3:30,
+                                               sep='.',
+                                               choice='choice',
+                                               id=c('id','time'))
+
+#library(devtools)
+#install_bitbucket('mauricio1986/gmnl')
+library(gmnl)
+
+#Formateamos la data de entrenamiento para usarla con gmnl()
+Zapatillas_entrenamiento_gmnl <- mlogit.data(Zapatillas_entrenamiento_wide,
+                                               shape='wide',
+                                               varying=3:30,
+                                               sep='.',
+                                               choice='choice',
+                                               id=c('id','time'))
+#Formateamos la data de testeopara usarla con gmnl()
+Zapatillas_testeo_gmnl <- mlogit.data(Zapatillas_testeo_wide,
+                                               shape='wide',
+                                               varying=3:30,
+                                               sep='.',
+                                               choice='choice',
+                                               id=c('id','time'))
+
+```
+
+
+```{r}
+################BASES PARA UTILIZAR mlogit()
+
+Zapatillas_entrenamiento_mlogit$nochoice= ifelse(Zapatillas_entrenamiento_mlogit$alt==4, 1, 0)
+
+Zapatillas_testeo_mlogit$nochoice = ifelse(Zapatillas_testeo_mlogit$alt==4, 1, 0)
+  
+################BASES PARA UTILIZAR gmnl()
+
+Zapatillas_entrenamiento_gmnl$nochoice = ifelse(Zapatillas_entrenamiento_gmnl$alt==4, 1, 0)
+
+Zapatillas_testeo_gmnl$nochoice = ifelse(Zapatillas_testeo_gmnl$alt==4, 1, 0)
+```
+
+
+### **Multinomial Logit**
+
+Estime un modelo Logit e interprete los coeficientes con tal de entender qué valoran las personas a la hora de evaluar la elección de compra de una zapatilla. Realice predicciones con su modelo Logit.
+
+```{r}
+##### ESTIMACIÓN
+
+
+MLogit=mlogit(choice ~ choice ~price + fash + qual + nochoice|-1+ age25+ age39 +female|0, 
+              data = Zapatillas_entrenamiento_mlogit)
+
+summary(MLogit)
+```
+Según los resultados reportados, aumentar el precio(price) afecta negativamente a la elección de cualquier marca de zapatillas de manera significativa. Fash y qual son significativos, esto reporta que si la zapatilla está a la moda y la calidad es alta aumenta la probabilidad de elección de alguna zapatilla, pues, genera mayor utilidad al individuo.
+
+Los individuos de hasta 25 años, de manera significativa obtienen mayor utilidad por elegir las alternativas 2,3 y 4(no elegir) respecto a la base(1). De quienes tienen entre 25 y 39 años no se puede afirmar nada estadísticamente, pues sus coeficientes no son significativos.
+
+Asimismo, si la persona es mujer, ve reducida la probabilidad de elección de aguna de las zapatillas, lo cual no deja de ser interesante.
+
+
+
+```{r}
+#####PREDICCIÓN 
+predictMLogit = predict(MLogit, newdata = Zapatillas_testeo_mlogit)
+predictMlogit = as.matrix(max.col(predictMLogit)) 
+#Printeamos algunas predicciones
+head(predictMlogit, 5)
+```
+
+
+### **Multinomial Probit**
+
+Estime un modelo Probit e interprete los coeficientes con tal de entender qué valoran las personas a la hora de evaluar la elección de compra de una zapatilla. Realice predicciones con su modelo Probit.
+
+```{r MProbit, message=FALSE, warning=FALSE}
+
+##### ESTIMACIÓN
+
+## use mlogit() para estimar el modelo
+
+# MProbit = mlogit(choice ~ .., data = Zapatillas_entrenamiento_mlogit, seed=20, R=50, probit=TRUE)
+
+MProbit <- mlogit(choice ~price + fash + qual + nochoice|-1+ age25+ age39 +female|0,
+                  data=Zapatillas_entrenamiento_mlogit, 
+                  seed=24, 
+                  R=50, 
+                  probit=TRUE)
+
+summary(MProbit)
+```
+
+
+Podemos observar en los resultados que el coeficiente de price es significativo y reduce en gran medida la utilidad de los individuos, vale decir, ante un aumento del precio, las personas valoran menos la elección por cualquier zapatilla.
+
+Por otro lado, que la zapatilla esté de moda(fash) reporta una mayor utilidad de manera significativa a la elección de la zapatilla. Asimismo, La calidad(qual) también genera mayor utilidad respecto a la elección de cualquier zapatilla.
+
+Los coeficientes de age25:i y age39:i nos indican la valoración media de las personas por la zapatilla $i\in\{1,2,3\}$ respecto a una elección base($i=0$). Notamos que en general las personas de hasta 25 años reportan un aumento de utilidad ante las elecciones de las zapatillas 2,3,4 respecto a la 0. Caso análogo, la gente entre 25 y 39 también reporta utilidad positiva, empero, ésta conclusión no es muy certera ante la poca o nula significancia de sus coeficientes.
+
+Asimismo, los coeficientes de female:i, indican que el hecho de ser mujer genera menos utilidad en la elección de cualquier zapatillas. Sin embargo, sólo se puede afirmar en parte para female:4 ya que es significativa a lo más a un 10%.
+
+
+```{r}
+#####PREDICCIÓN 
+
+predictMProbit = predict(MProbit, newdata = Zapatillas_testeo_mlogit)
+predictMProbit = as.matrix(max.col(predictMProbit)) 
+#Printeamos algunas predicciones
+head(predictMProbit, 5)
+```
+
+### **Multinomial Latent Class Logit**
+
+Estime un modelo Latent Class Logit de dos clases e interprete los coeficientes de cada clase con tal de entender qué valoran las personas a la hora de evaluar la elección de compra de una zapatilla. Realice predicciones con su modelo Latent Class Logit.
+
+```{r MLCLogit, message=FALSE, warning=FALSE}
+library(gmnl)
+##### ESTIMACIÓN
+
+MLCLogit = gmnl(choice ~ fash + qual + price + nochoice|-1 + female + age25 + age39 |0|0|1, 
+                data = Zapatillas_entrenamiento_gmnl, 
+                model = 'lc', 
+                Q = 2)
+
+summary(MLCLogit)
+```
+
+Respecto a la variable price, podemos notar que en ambos segmentos este disminuye la utilidad del individuo ante un aumento del precio de manera estadísticamente significativa.
+
+Por otro lado, es interesante notar que que la variable fash, osea que la zapatilla esté a la moda, para el segmento 1 disminuye  la utilidad, aunque no es significativo. Para el segmento 2, esta aumenta la utilidad de los individuos.
+
+Para el segmento 2, la no elección(nochoice) de alguna zapatilla le genera utilidad positiva, con una significancia al 5%.
+
+Con respecto a la variable age, esta es significativa sólo para el segmento 2. En el cual se reporta una utilidad positiva en quienes tienen a lo más 25 años, con significancia al 1%. Esto nos dice que respecto al modelo de base(1), los individuos de ese rango de edad obtienen mayor utilidad en los modelos 2,3 y en la no elección 4. Asimismo para quienes tienen entre 25 y 39 años no se puede afirmar nada, pues los coeficientes no son significativos.
+
+Que la persona sea mujer(female) y pertenezca al segmento 2 reporta menor utilidad respecto a las zapatillas 2,3 y a no elegir ninguna(4) respecto a la zapatilla base 1. Caso particular, ocurre con la elección de la zapatilla 3 en el primer segmento, la cual reporta mayor utilidad si la persona es mujer, con una significancia al 5%, respecto a la elección 1.
+
+```{r}
+#####PREDICCIÓN 
+
+#Definimos un vector de unos para utilizarlo con la variable nochoice
+Zapatillas_entrenamiento_wide$unos = 1
+
+#Creamos las tablas para poder predecir.
+
+unot = cbind(Zapatillas_entrenamiento_wide$fash.1,
+             Zapatillas_entrenamiento_wide$qual.1,
+             Zapatillas_entrenamiento_wide$price.1,
+             Zapatillas_entrenamiento_wide$female.2,
+             Zapatillas_entrenamiento_wide$female.3,
+             Zapatillas_entrenamiento_wide$female.4,
+             Zapatillas_entrenamiento_wide$age25.2,
+             Zapatillas_entrenamiento_wide$age25.3,
+             Zapatillas_entrenamiento_wide$age25.4,
+             Zapatillas_entrenamiento_wide$age39.2,
+             Zapatillas_entrenamiento_wide$age39.3,
+             Zapatillas_entrenamiento_wide$age39.4)
+
+dost = cbind(Zapatillas_entrenamiento_wide$fash.2,
+             Zapatillas_entrenamiento_wide$qual.2,
+             Zapatillas_entrenamiento_wide$price.2,
+             Zapatillas_entrenamiento_wide$female.2,
+             Zapatillas_entrenamiento_wide$female.3,
+             Zapatillas_entrenamiento_wide$female.4,
+             Zapatillas_entrenamiento_wide$age25.2,
+             Zapatillas_entrenamiento_wide$age25.3,
+             Zapatillas_entrenamiento_wide$age25.4,
+             Zapatillas_entrenamiento_wide$age39.2,
+             Zapatillas_entrenamiento_wide$age39.3,
+             Zapatillas_entrenamiento_wide$age39.4)
+
+trest = cbind(Zapatillas_entrenamiento_wide$fash.3,
+              Zapatillas_entrenamiento_wide$qual.3,
+              Zapatillas_entrenamiento_wide$price.3,
+              Zapatillas_entrenamiento_wide$female.2,
+              Zapatillas_entrenamiento_wide$female.3,
+              Zapatillas_entrenamiento_wide$female.4,
+              Zapatillas_entrenamiento_wide$age25.2,
+              Zapatillas_entrenamiento_wide$age25.3,
+              Zapatillas_entrenamiento_wide$age25.4,
+              Zapatillas_entrenamiento_wide$age39.2,
+              Zapatillas_entrenamiento_wide$age39.3,
+              Zapatillas_entrenamiento_wide$age39.4)
+
+cuatrot = cbind(Zapatillas_entrenamiento_wide$fash.4,
+                Zapatillas_entrenamiento_wide$qual.4,
+                Zapatillas_entrenamiento_wide$price.4,
+                Zapatillas_entrenamiento_wide$female.2,
+                Zapatillas_entrenamiento_wide$female.3,
+                Zapatillas_entrenamiento_wide$female.4,
+                Zapatillas_entrenamiento_wide$age25.2,
+                Zapatillas_entrenamiento_wide$age25.3,
+                Zapatillas_entrenamiento_wide$age25.4,
+                Zapatillas_entrenamiento_wide$age39.2,
+                Zapatillas_entrenamiento_wide$age39.3,
+                Zapatillas_entrenamiento_wide$age39.4,
+                Zapatillas_entrenamiento_wide$unos)
+#Obtenemos los coeficientes del MCLogit
+
+coefficientsC1 <- c(MLCLogit$coefficients[1],#fash class 1
+                    MLCLogit$coefficients[2],#qual class 1
+                    MLCLogit$coefficients[3],#price class 1
+                    MLCLogit$coefficients[5],#female.2 class 1
+                    MLCLogit$coefficients[6],#female.3 class 1
+                    MLCLogit$coefficients[7],#female.3 class 1
+                    MLCLogit$coefficients[8],#age25.2 class 1 
+                    MLCLogit$coefficients[9],#age25.3 class 1
+                    MLCLogit$coefficients[10],#age39.4 class 1
+                    MLCLogit$coefficients[11],#age39.2 class 1
+                    MLCLogit$coefficients[12],#age39.3 class 1
+                    MLCLogit$coefficients[13])#age39.4 class 1
+
+coefficientsC2 <- c(MLCLogit$coefficients[14],#fash class 2
+                    MLCLogit$coefficients[15],#qual class 2
+                    MLCLogit$coefficients[16],#price class 2
+                    MLCLogit$coefficients[18],#female.2 class 2
+                    MLCLogit$coefficients[19],#female.3 class 2
+                    MLCLogit$coefficients[20],#female.4 class 2
+                    MLCLogit$coefficients[21],#age25.2 class 2 
+                    MLCLogit$coefficients[22],#age25.3 class 2
+                    MLCLogit$coefficients[23],#age39.4 class 2
+                    MLCLogit$coefficients[24],#age39.2 class 2
+                    MLCLogit$coefficients[25],#age39.3 class 2
+                    MLCLogit$coefficients[26])#age39.4 class 2
+
+coefficientnochoiceC1 <- MLCLogit$coefficients[4] #nochoice class 1
+coefficientnochoiceC2 <- MLCLogit$coefficients[17] #nochoice class 2
+
+coefficientclass2 <- MLCLogit$coefficients[27] #Intercepto clase 2, probabilidad de pertenecer a la clase 2.
+
+expUunotC1 = exp(unot %*% coefficientsC1) # exponential de la utilidad por alternativa 1 en la clase 1 
+expUdostC1  = exp(dost  %*% coefficientsC1) # exponential de la utilidad por alternativa 2 en la clase 1  
+expUtrestC1  = exp(trest  %*% coefficientsC1) # exponential de la utilidad por alternativa 3 en la clase 1 
+expUcuatrotC1 = exp(cuatrot %*% c(coefficientsC1,coefficientnochoiceC1)) #exponential de la utilidad por alternativa 4 en la clase 1 
+
+expUunotC2 = exp(unot %*% coefficientsC2) # exponential de la utilidad por alternativa 1 en la clase 2 
+expUdostC2  = exp(dost %*% coefficientsC2) # exponential de la utilidad por alternativa 2 en la clase 2  
+expUtrestC2  = exp(trest %*% coefficientsC2) # exponential de la utilidad por alternativa 3 en la clase 2 
+expUcuatrotC2 = exp(cuatrot %*% c(coefficientsC2,coefficientnochoiceC2)) #exponential de la utilidad por alternativa 4 en la clase 2 
+
+denomC1 = expUunotC1+expUdostC1+expUtrestC1+expUcuatrotC1   # Suma de las utilidades exponenciadas, clase 1
+denomC2 = expUunotC2+expUdostC2+expUtrestC2+expUcuatrotC2   # Suma de las utilidades exponenciadas, clase 2
+
+PrunotC1 = expUunotC1 / denomC1 # Probabilidad de elegir alternativa 1, en la clase 1           
+PrdostC1 = expUdostC1 / denomC1 # Probabilidad de elegir alternativa 2, en la clase 1
+PrtrestC1 = expUtrestC1 / denomC1   # Probabilidad de elegir alternativa 3, en la clase 1
+PrcuatrotC1 = expUcuatrotC1 / denomC1   # Probabilidad de elegir alternativa 4, en la clase 1               
+
+PrunotC2 = expUunotC2 / denomC2 # Probabilidad de elegir alternativa 1, en la clase 2       
+PrdostC2 = expUdostC2 / denomC2 # Probabilidad de elegir alternativa 2, en la clase 2           
+PrtrestC2 = expUtrestC2 / denomC2 # Probabilidad de elegir alternativa 3, en la clase 2     
+PrcuatrotC2 = expUcuatrotC2 / denomC2   # Probabilidad de elegir alternativa 4, en la clase 2
+
+pclase2 = exp(coefficientclass2)/(exp(0)+exp(coefficientclass2)) #Probabilidad de pertenecer a la clase 1
+pclase1 = exp(0)/(exp(0)+exp(coefficientclass2)) #Probabilidad de pertenecer a la clase 2
+
+PrunotC = pclase1*PrunotC1+pclase2*PrunotC2 # Probabilidad total de elegir alternativa 1
+PrdostC = pclase1*PrdostC1+pclase2*PrdostC2 # Probabilidad total de elegir alternativa 2
+PrtrestC = pclase1*PrtrestC1+pclase2*PrtrestC2 # Probabilidad total de elegir alternativa 3
+PrcuatrotC = pclase1*PrcuatrotC1+pclase2*PrcuatrotC2 # Probabilidad total de elegir alternativa 4
+
+#Matriz de probabilidades tal como las devuelve predict()
+predictmodel = as.matrix(cbind(PrunotC,PrdostC,PrtrestC,PrcuatrotC))
+
+predictmodel = as.matrix(max.col(predictmodel))  #vector que contiene la alternativa con mayor probabilidad (la más probable a escoger) para cada persona en cada instancia de decisión
+```
+
+Veamos algunas predicciones.
+
+```{r}
+head(predictmodel, 5)
+```
+
+
+### **Multinomial Mixed Logit**
+
+Estime un modelo Mixed Logit e interprete los coeficientes con tal de entender qué valoran las personas a la hora de evaluar la elección de compra de una zapatilla. Realice predicciones con su modelo Mixed Logit.
+
+```{r MMLogit, message=FALSE, warning=FALSE}
+##### ESTIMACIÓN
+
+## use mlogit() para estimar el modelo
+
+MMLogit = mlogit(choice ~ price + fash + qual + nochoice|-1+ age25+ age39 +female|0, 
+              data = Zapatillas_entrenamiento_mlogit,
+              rpar= c(price='n', fash='n', qual='n', nochoice='n'), 
+              R = 50, 
+              halton = NA, 
+              correlation = TRUE)
+
+summary(MMLogit)
+
+```
+
+Análogamente al análisis de los modelos anteriores, el precio juega un rol fundamental en la elección de una zapatillas. Este produce una valoración negativa ante un eventual alza. El modelo lo reporta a una significancia menor al 1%.
+
+Al igual que antes, fash y qual generan valor a los clientes, lo que hace sentido, pues es lógico pensar si la zapatilla está a la moda y es de calidad, tendrá un valor agregado para el cliente a diferencia si no lo fuera.
+
+Se sigue dando el caso que si la persona es mujer, reporta una menor utilidad respecto a ser hombre ante la elección de las diferentes zapatillas, al menos a 10% de significancia.
+
+
+
+```{r}
+#####PREDICCIÓN 
+predictMMLogit = predict(MMLogit, newdata = Zapatillas_testeo_mlogit)
+predictMMLogit = as.matrix(max.col(predictMMLogit)) 
+```
+
+Veamos algunas predicciones.
+
+```{r}
+head(predictMMLogit, 5)
+```
+Esto representa que el individuo de la fila 1 del conjunto de testeo escogería la zapatilla 1, el segundo la 1 también, el tercero la 2 y así sucesivamente.
+

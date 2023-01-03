@@ -1,0 +1,267 @@
+---
+title: "Laboratorio 2"
+author: "Sebastián Urbina"
+date: "08-09-2021"
+output:
+  html_document:
+    df_print: paged
+    theme: simplex
+    highlight: tango
+    toc: yes
+encoding: UTF-8
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Preprocesamiento
+
+```{r start, message = FALSE, warning=FALSE, include=FALSE}
+rm(list=ls())				 #Limpia todos los objetos creados en R
+graphics.off()			 #Limpia los gráficos
+options(digits = 3)  #Dígitos después del punto para observar (décimas, centésimas,...)
+set.seed(12345)      #Fijar semilla de aleatoriedad
+```
+
+```{r paquetes útiles, message = FALSE, warning=FALSE}
+library(readr)     #Para leer CSV
+library(glmnet)    #Para ajustar modelo lineal
+library(corrplot)  #Para realizar correlogramas
+library(dplyr)     #Para manipulación de datos
+library(ggplot2)   #Para gráficos
+library(caret)     #Para validar y entrenar los modelos
+library(knitr) 
+```
+
+```{r lectura base}
+Casas <- read.csv("Casas.csv")
+```
+
+Transformamos algunas variables a categóricas para que ``R`` las trabaje bien.
+
+```{r inspección datos, message = FALSE, warning=FALSE}
+#table(Casas$MS_SubClass)
+Casas$X = as.factor(Casas$X)
+Casas$MS_SubClass=as.factor(Casas$MS_SubClass)
+Casas$MS_Zoning=as.factor(Casas$MS_Zoning)
+Casas$Alley=as.factor(Casas$Alley)
+Casas$Lot_Shape=as.factor(Casas$Lot_Shape)
+Casas$Land_Contour=as.factor(Casas$Land_Contour)
+Casas$Utilities=as.factor(Casas$Utilities)
+Casas$Lot_Config=as.factor(Casas$Lot_Config)
+Casas$Land_Slope=as.factor(Casas$Land_Slope)
+Casas$Condition_1=as.factor(Casas$Condition_1)
+Casas$Condition_2=as.factor(Casas$Condition_2)
+Casas$Bldg_Type=as.factor(Casas$Bldg_Type)
+Casas$House_Style=as.factor(Casas$House_Style)
+Casas$Overall_Qual=as.factor(Casas$Overall_Qual)
+Casas$Overall_Cond=as.factor(Casas$Overall_Cond)
+Casas$Roof_Style=as.factor(Casas$Roof_Style)
+Casas$Roof_Matl=as.factor(Casas$Roof_Matl)
+Casas$Exterior_1st=as.factor(Casas$Exterior_1st)
+Casas$Exterior_2nd=as.factor(Casas$Exterior_2nd)
+Casas$Mas_Vnr_Type=as.factor(Casas$Mas_Vnr_Type)
+Casas$Exter_Qual=as.factor(Casas$Exter_Qual)
+Casas$Heating=as.factor(Casas$Heating)
+Casas$Heating_QC=as.factor(Casas$Heating_QC)
+Casas$Full_Bath <- as.factor(Casas$Full_Bath)
+```
+
+# Pregunta 1
+
+
+Primero que todo, haremos un ``corplot`` para ver las correlaciónes entre las variables numéricas.
+
+```{r, include=FALSE, max.print=0}
+library("dplyr")
+correlacion <- cor(select_if(Casas, is.numeric));
+round(correlacion, digits = 2);
+```
+
+```{r, fig.width= 20, fig.height=15}
+corrplot(correlacion, method = "shade", shade.col = NA, tl.col = "black", tl.srt = 90, addCoef.col = "black")
+```
+
+Se puede notar que la variable de ``Garage_Area`` está bastante correlacionada con ``Garage_Cars``, lo que tiene bastante sentido. Asimismo, la variable ``TotRms_AbvGrd`` que representa la cantidad de habitaciones sobre el nivel del suelo tiene bastante correlación(0.81) con ``Gr_Liv_Area``, que representa la superficie habitable sobre el nivel del suelo. Esto nos servirá para evitar agregar variables correlacionadas que pueden no aportar información y generar problemas de multicolinealidad.
+
+Ahora, se realizarán algunos gráficos sobre ciertas variables que se creen que pueden tener un efecto sobre el precio y así poder decidir cuáles utilizar.
+
+```{r, message = FALSE, warning=FALSE, include=FALSE}
+ggplot(Casas) +
+  aes(x=Lot_Area, y=log(Sale_Price)) + 
+  geom_point() +
+  geom_smooth(se=FALSE, method='lm') + 
+  labs(x='Año construcción casa', y='Log Sale price') + 
+  theme_bw() 
+
+#Heating quality and condition: HeatingQC
+```
+
+
+```{r, message = FALSE, warning=FALSE, include=FALSE}
+ggplot(Casas) +
+  aes(x=log(Lot_Frontage), y=log(Sale_Price)) + 
+  geom_point() +
+  #geom_smooth(se=FALSE, method='lm') + 
+  labs(x='Superficie habitable por encima del nivel del suelo (pies cuadrados)', y='Log Sale price') + 
+  theme_bw() 
+```
+
+```{r, message = FALSE, warning=FALSE}
+ggplot(Casas) +
+  aes(x=log(Total_Bsmt_SF), y=log(Sale_Price)) + 
+  geom_point() +
+  geom_smooth(se=FALSE, method='lm') + 
+  labs(x='Log total de pies cuadrados de superficie de sótano', y='Log Sale price') + 
+  theme_bw() 
+```
+
+La variable ``Total_Bsmt_SF`` representa el total de pies cuadrados del sótano de la casa. En la gráfica se tiene cierta tendencia lineal versus el logaritmo del precio de venta. Asimismo, tiene bastante sentido, pues a mayor cantidad de metros cuadrados del sotano la casa es más grande y por tanto mayor su precio.
+
+```{r, message = FALSE, warning=FALSE}
+ggplot(Casas) +
+  aes(x=log(First_Flr_SF), y=log(Sale_Price)) + 
+  geom_point() +
+  geom_smooth(se=FALSE, method='lm') + 
+  labs(x='Log pies cuadrados primer piso', y='Log Sale price') + 
+  theme_bw() 
+```
+
+La variable ``First_Flr_SF`` representa los pies cuadrados del primer piso, y al graficar el Log de esta variable versus el Log del precio se observa una clara relación lineal. Sin embargo, posee una correlación de 0.8 respecto a ``Total_Bsmt_SF``. Y para efectos prácticos se utilizará esta variable en vez de ``Total_Bsmt_SF``, ya que hay muchas casas que no tienen sotano y puede no aportar suficiente información como el tamaño del primer piso, que posee estrecha relación con el precio de la casa.
+
+```{r, message = FALSE, warning=FALSE}
+ggplot(Casas) +
+  aes(x=log(Garage_Area), y=log(Sale_Price)) + 
+  geom_point() +
+  geom_smooth(se=FALSE, method='lm') + 
+  labs(x='Log pies cuadrados garage', y='Log Sale price') + 
+  theme_bw() 
+```
+
+La variable ``Garage_Area`` representa el área del garage de la casa. Tiene sentido, que a mayor sea esta área, mayor sea el precio. Y evidentemente proporciona esta intuición esta gráfica de Log Garage Area vs Log Precio de venta. Por lo que se consideará como una de las 10 variables a utilizar en los próximos modelos, pues entrega información útil.
+
+
+
+```{r, message = FALSE, warning=FALSE}
+ggplot(Casas) +
+  aes(x=Full_Bath, y=Sale_Price) + 
+  geom_boxplot(fill='black', alpha=0.4) +
+  labs(x='Cantidad de baños completos', y='Precio de venta') + 
+  theme_bw() 
+```
+
+La variable ``Full_Bath`` representa la cantidad de baños completos. El boxplot respecto al precio evidencia que los datos parecen concentrarse a valores más altos a medida que tiene más baños. Se utilizará esta variable en nuestros modelos, parece aportar información útil respecto al precio.
+
+
+
+
+```{r, fig.width=14}
+ggplot(Casas) +
+  aes(x=MS_Zoning, y=log(Sale_Price)) +
+  geom_boxplot(size=1, alpha=0.4) + 
+  theme(axis.text.x= element_text(angle=60,vjust=0,hjust=0)) +
+  xlab("Tipo de Zona") 
+```
+
+La variable ``MS_Zoning`` representa la clasificación de zona de la casa en venta. En el boxplot se puede observar que existen diferencias importantes en las variabilidades del Log de precios frente a las diferentes categorías. Por lo que se incluirá dentro de las variables a esutudiar, parece aportar información relevante.
+
+Finalmente, las variables a utilizar serán:
+
+- First_Flr_SF
+- Garage_Area
+- Full_Bath
+- MS_Zoning
+- Lot_Area
+- Mas_Vnr_Area
+- Fireplaces: Número de chimeneas
+- RoofStyle: Tipo de techo(Flat,Gable,Gambrel,Hip,Mansard,Shed)
+- Neighborhood: 
+- Heating_QC: Calidad y estado calefacción
+
+```{r p1, warning=FALSE}
+#Escoja 10 variables continuas u categóricas (no con tantas categorías)
+#De esas 10, debe argumentar para al menos 3 de ellas porque podrían ser predictoras del precio de la casa. 
+#Construya una base de datos reducida con "Casas <- Casas[,c(x1,x2,x3,...x10)]" 
+# x1,...,x10 son las posiciones de las variables en la base de datos Casas
+
+Casas_sub <- Casas[,c('Sale_Price','First_Flr_SF','Garage_Area','Full_Bath','MS_Zoning','Lot_Area','Mas_Vnr_Area','Fireplaces','Roof_Style','Neighborhood','Heating_QC')]
+```
+
+# Pregunta 2
+
+```{r, warning=FALSE}
+# Construimos un vector que esta formado por números de filas aleatoriamente
+index <- sample(1:nrow(Casas_sub), size= nrow(Casas_sub)*0.7)
+# Base de entrenamiento: del total de datos, tomamos las filas aletorizadas que tienen datos en index
+train <- Casas_sub[index, ]
+# Anteponiendo el "-" escogemos las filas en de la base que no están en index 
+test  <- Casas_sub[-index, ]
+```
+
+
+## Regresión lineal
+```{r p2, warning=FALSE}
+#Corra 1 modelo de regresión lineal y 2 modelos de Machine Learning vistos en la clase con la base de datos reducida,  para predecir el precio de las casas.
+
+train.lm <- train(form = Sale_Price ~ ., #Fórmula
+  data = train, #Datos
+  method = "lm", #Algoritmo 
+  trControl = trainControl(method = "cv", number = 10) #Method = cross validation, number=10 (k-fold) 
+)
+
+test.lm  <- predict(train.lm , newdata=test) #Vector de datos predichos. Recibe una base de datos (newdata) y un modelo entrenado (train.lm)
+error.lm <- test$Sale_Price-test.lm #Calcular los errores de predicción (dato real - dato estimado)
+```
+
+## KNN
+
+```{r, message = FALSE, warning=FALSE}
+### Ejecutar KNN
+train.knn <- train(Sale_Price ~ ., 
+                   data=train, method="knn",  
+                   trControl = trainControl("cv", number=10),
+                   preProcess = c("center","scale"),
+                   tuneLength = 5 
+)
+
+#print(train.knn)
+test.knn  <- predict(train.knn, newdata=test) 
+error.knn <- test$Sale_Price-test.knn
+```
+## MARS
+```{r, message = FALSE, warning=FALSE}
+#Ejecutar MARS (Multivariate adaptive regression spline)
+train.mars <- train(form = Sale_Price ~ ., 
+                    data=train, 
+                    method="earth", #MARS
+                    trControl = trainControl("cv", number=10),
+                    preProcess = c("center","scale"), #Pre-procesa datos. "center" resta el promedio de las variables, "scale" las divide por la desviación estandar. Esto ayuda para el tratamiento de outliers.
+                    tuneLength = 10 #Indica que pruebe diferentes valores por default para el parámetro principal
+)
+test.mars  <- predict(train.mars, newdata=test) #Vector de datos predichos 
+error.mars <- test$Sale_Price-test.mars #(dato real - dato estimado)
+```
+
+
+
+
+# Pregunta 3
+
+```{r p3}
+# Comparación de Modelos: Compare los modelos a través de métricas presentadas en el laboratorio. 
+# ¿Cuál es el mejor modelo predictivo?
+
+sales.test <- data.frame(lm=test.lm, mars=unname(test.mars),  knn=test.knn)
+error.test <- data.frame(lm=error.lm, mars=unname(error.mars), knn=error.knn)
+```
+
+```{r, message = FALSE, warning=FALSE}
+boxplot(abs(subset(error.test))); title(main="ML models", sub="Forecasting Absolute Errors")
+```
+
+```{r, message = FALSE, warning=FALSE}
+boxplot(error.test); title(main="ML models", sub="Forecasting Errors")
+```
+
+En general los 3 modelos se comportan relativamente igual. Aunque, se puede apreciar que MARS tiene un poco menos de variabilidad en los errores. Si tuviera que elegir un modelo, sería MARS, sin embargo, seguiría cambiando los hiperparámetros o probando con más variables para tomar una mejor decisión.

@@ -1,0 +1,316 @@
+---
+title: "Laboratorio 1. IN5602 - Semestre Primavera 2021"
+author: "Equipo Docente IN5602"
+date: "25 de agosto de 2021"
+output:
+  html_document:
+    df_print: paged
+    highlight: tango
+    theme: simplex
+    toc: yes
+  pdf_document:
+    toc: yes
+encoding: UTF-8
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Preliminares
+
+Este es un archivo R Markdown. Este formato te pemite integrar código, su salidas y poder comentarlos para poder ordenar y discutir el análsis que esten haciendo. Las salidas se pueden exportar a formato HTML, PDF y MS Word, lo que facilita la comunicación con los equipos de trabajo. Este formato no solo se adecua bien para que ustedes comuniquen sus avances, sino que también es bastante usado en equipos de desarollo.
+
+En esencia, un archivo markdown es un documento de texto estructurado en el que podemos incluir titulos, subtitulos y listas, en el que podemos incrustar bloques de código R como este:
+
+```{r cars}
+x = rnorm(1000)
+hist(x)
+```
+
+Al hacer clic en el botón **Knit**, se generará un documento que incluye tanto el contenido como la salida de cualquier fragmento de código R incorporado dentro del documento. Para instalar y cargar markdowns, necesitamos los siguientes comandos. 
+
+```{r instalation, eval = FALSE}
+install.packages("rmarkdown")
+library(rmarkdown)
+```
+
+Para más detalles sobre el uso de Markdown en R ver: <http://rmarkdown.rstudio.com>.
+
+# Desarollo del laboratorio {.tabset}
+
+## R Markdowns
+
+### Herramientas Básicas de MarkDown
+
+A continuación, se presentan las herramientas base para poder utilizar Markdown de buena manera:
+
+#### 1. Encabezados y listas.
+
+Existen 6 niveles para definir los encabezados y se utilizan con el caracter "#". Por ejemplo, un texto antecedido de "#####" generará un titulo de cuarto nivel: 
+
+##### este es el nivel 5
+
+Así dependiendo de la importancia o del orden puedes variar el tamaño de los títulos.
+
+Para generar listas desordenadas, lo único que deben hacer es agregar un "-" antes de la oración o palabra(+ y *, son otras opciones válidas).
+
+* En esta linea podemos ver como se genera la lista
++ Otra linea
+* Asterisco tambien funciona
+
+Para listas ordenadas, agregar número y un espacio, luego la oración
+
+1. No me gusta el humor boomer del profesor.
+2. Pero si me caen muy bien los auxiliares.
+3. Voy a aprender mucho en este curso. 
+
+#### 2. Citas, espaciado, negritas y otros herramientas.
+
+Si quieres realizar una cita , solo deben agregar el comando ">" y esta se llevara a cabo.
+> en este línea se puede observar el formato de una cita
+
+Para generar una separación basta con escribir tres guiones bajo.
+___
+
+Para incluir negritas o cursivas, basta con rodear el texto con asteriscos(uno para cursiva, dos negrita y tres ambos).
+*Este curso lo van a pasar todos los estudiantes que constantemente asistan a las clases auxiliares y hagan a consciencia los Laboratorios*
+
+Si quieren ponerse creativos, también pueden incluir enlaces. Si quieres agregar un enlace, debes poner entre llaves cuadradas el string que será en hipervínculo y entre llaves redondas el enlace.
+
+[Departamento de Ingeniería Industrial](http://www.dii.uchile.cl)
+
+#### 3. Código
+
+Dependiendo de que se busque hacer, hay distintas maneras de usar códigos. Si es una línea, 4 espacios en blanco bastan
+
+    Esto es código
+    
+Sin embargo lo más típico es usar bloques (o chunks) de código:
+
+"```{r nombre_del_bloque}"
+
+
+"```"
+
+En casi todos los ejemplos vamos a usar bloques. El *nombre_del_bloque* es opcional, pero ayuda a ordenar tu codigo. Los bloques admiten varias opciones para que se muestre/no se muestre, se ejecute/no se ejecute o no muetre las salidas intermedias. Por el momento vamos a partir con las opciones por defecto que muestra y ejecuta todo. 
+
++ Para transformar ver el output de tu archivo markdown presiona ctrl+shift+k
++ Save with encoding: UTF-8, para evitar tener problemas con los acentos
+
+## R Programing
+
+### Antes de comenzar a Programar
+
+Antes de comenzar debemos setear el directorio de trabajo (ie. donde están los archivos, bases y documentos a utilizar.). Además, le puede ser util limpiar el espacio de trabajo y fijar decimales.
+
+
+```{r start, eval = FALSE}
+
+# como tenemos eval = FALSE, esta secuencia no se va a ejecutar. Solo la incluimos como referencia.
+
+rm(list=ls())         # Limpia la lista de objetos 
+graphics.off()        # Limpia la lista de gráficos
+options(digits = 5)   # Número de dígitos a utilizar
+
+setwd("C:\Users\rafae\Desktop\Marketing II")  # fijen el directorio de trabjo que les acomode
+```
+
+### Variables Numéricas
+
+```{r Chunk 1}
+var1 = 5+1
+print(var1)
+```
+
+Otro ejemplo:
+```{r}
+a = 4
+b = 8
+a+b
+a*b
+a/b
+```
+
+#### Ciclos y sentencias condicionales if - else
+
+Secuencias *for*
+
+```{r}
+for (i in 1:10){
+  cat("iteración número", i, "\n")
+}
+```
+
+sentencias condicionales.  
+```{r}
+a=6
+b=5
+if (a>b){
+  print("Hola Mundo")
+}
+
+```
+
+#### Definición de funciones
+```{r funciondelauxALCUADRADO}
+funciondelauxALCUADRADO <- function(a){
+  c = a**a
+  return(c)
+}
+funciondelauxALCUADRADO(2)
+```
+#### Generación de data
+```{r data generation}
+set.seed(100)
+n = 1000
+mu = 5
+SD = mu*0.15
+lambda = 7
+
+normal_dist = rnorm(n, mu, SD)
+uniform_dist = runif(n, min=0, max=1)
+poisson_dist = rpois(n, lambda)
+suma = normal_dist + uniform_dist + poisson_dist
+
+
+#Para ayuda en distribuciones de probabilidad: help("Distributions")
+
+```
+##### Plot
+```{r plot}
+#attach(mtcars)
+par(mfrow=c(2,2))
+hist(normal_dist, main = "Normal")
+hist(uniform_dist, main = "Uniforme")
+hist(poisson_dist, main = "Poisson")
+hist(suma, main = "Suma")
+```
+
+
+
+#### Dataframes
+```{r}
+set.seed(27)
+y = 11:20
+mi_df <- data.frame(x = 1:10,
+                    y,
+                    w = sample(c("Grupo 1", "Grupo 2"), 10, replace = TRUE))
+
+print(mi_df)
+mi_df$z<-3:12
+print(mi_df)
+print(mi_df[2,1])
+print(mi_df[2,"x"])
+#Devuelve una lista
+print(mi_df["x"])
+#devuelve un vector
+print(mi_df$x)
+#devuelve un df filtrado
+subset(mi_df, w=="Grupo 2")
+```
+
+## Preguntas
+
+##### Pregunta 1 - Generación de Data 
+
+Use la función *rnorm()* para definir un dataframe con columnas $x_1$ y $x_2$ de 1000 observaciones, con media $\mu = (\mu_1, \mu_2) = (4, 6)$  y $\sigma=\mu * 15\%$. Use la misma función para definir tambien una columna de errores normales $\epsilon$ que distribuyen $N(0, 1)$. Notar que puede incluir en la función *rnorm()* la media y desviación estándar que desea en sus vectores.
+
+```{r p1a}
+
+#definir DataFrame con columnas x1, x2 y e.
+
+```
+
+De una distribución uniforme $U(-M,M)$, genere valores para $b_0$, $b_1$ y $b_2$. $M$ corresponde su mes de nacimiento. Defina la columna $y$ como $y = b_0 + b_1 x_1 + b_2 x_2 + \varepsilon$. 
+
+```{r p1b}
+
+# definir b0, b1 y b2
+# definir df$y = b0 + b1*df$x1 + b2*df$x2 + df$e
+
+```
+
+
+
+
+##### Pregunta 2 - Regresión Lineal
+
+Use el comando *lm()* para correr un modelo de regresión $y = b_0 + b_1 x_1 + b_2 x_2 + \varepsilon$. 
+```{r p2a}
+
+# myreg <- lm()
+#summary(myreg)
+```
+
+Comente brevemente cómo interpreta los resultados.
+
+Explore brevemente la documentación de la función *lm()* para ver cómo puede rescatar los valores predichos por el modelo de regresión para cada valor de $x_1$ y $x_2$. Llámele *ypred* a este vector y use la función *plot()* para generar un scatter plot de y vs ypred.  
+
+```{r preg2.b}
+
+# ypred <- ...
+# plot(y, ypred)
+```
+
+Comente brevemente.
+
+
+
+##### Pregunta 3 - Sampling e indexación 
+Usted desea obtener un sample aleatorio de 100 observaciones de la muestra original. Para ello, siga los siguientes pasos:
+
+###### Forma n°1
+1. Con la función #sample(i:k,n, replace=False) genere una lista llamada 'rand' de 100 números enteros aleatorios.
+
+2. Genere una nueva variable en la base de datos llamada 'sample' con valores 0.
+
+3. Con un ciclo for, remplace el valor de la variable 'sample' con el valor 1 si la observación $i$ está dentro de la lista 'rand'.
+
+4. Genere una nueva base de datos llamada 'df_sample_1' con la función #subset().
+
+```{r preg4}
+#1. sample()
+#2. df$sample = 
+#3. for ...
+#4. df_sample_1 = subset ( ... )
+```
+
+##### Forma n°2
+A partir del paso 1 anterior, obtenga los resultados del paso 4 utilizando solo 1 línea de código, llamando a esta base de datos 'df_sample_2'. Puede ser de ayuda visitar 
+https://rpubs.com/adiedrichs/basicIndexInR .
+
+```{r preg4b}
+#df_sample_2 = 
+```
+
+Estime de nuevo la regresión con el nuevo sample. Compare los resultados de ambas regresiones. Comente acerca de las diferencias.
+```{r p4c}
+# myreg <- lm()
+# summary(myreg)
+
+```
+
+
+##### Pregunta 4 - Factor variables
+Cree una nueva base de datos la cual contenga una variable $y \sim N(0,1)$ de 1000 observaciones. Luego, genere una variable $x_1 \sim N(10,1.5)$ y una variable categórica de 3 categorías, las cuales puede nombrar y estar distribuidas en la muestra como ud. prefiera.
+
+```{r preg4.a}
+# y = ...
+# x_1 = ...
+# cat = ...
+# df = data.frame(...)
+```
+
+Estime la regresión $y = \beta_0 + \sum_{i=1}^{n=2}\beta_jcat_j + \beta_3 x_1 + \varepsilon$. 
+
+```{r preg4.b}
+# reg <- lm(formula = [...] ~ [...].f + X, data = [...])
+# summary(reg)
+````
+
+Interprete los resultados y coeficientes obtenidos.
+
+
+
