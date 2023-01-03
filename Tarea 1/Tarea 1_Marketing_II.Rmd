@@ -1,0 +1,620 @@
+<div style="text-align: right"> **Universidad de Chile**</div>
+<div style="text-align: right"> **Ingeniería Industrial**</div>
+<div style="text-align: right"> **IN5602**: Marketing II</div>
+<div style="text-align: right">**Prof**: Pedro Arana</div>
+<div style="text-align: right">**Auxs**: Renato Cerda, Gabriela Mora, Ángelo Muñoz, Rafael Tiara </div>
+
+---
+title:  'Tarea 1 - Semestre Primavera 2021'
+author: 'Michael Clemans - Jorge Manriquez - Sebastián Urbina'
+date:   '6 de Septiembre de 2021'
+output:
+  html_document:
+    df_print: paged
+    theme: simplex
+    highlight: tango
+    toc: no
+encoding: UTF-8
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(readr)     #Para leer CSV
+library(glmnet)    #Para ajustar modelo lineal
+library(corrplot)  #Para realizar correlogramas
+library(dplyr)     #Para manipulación de datos
+library(ggplot2)   #Para gráficos
+library(caret)     #Para validar y entrenar los modelos
+library(knitr) 
+library(scales)
+library(stargazer)
+```
+
+```{r carga data y ajustes}
+train <- read.csv("train.csv")
+meal_info <- read.csv("meal_info.csv")
+fulfilment_center_info <- read.csv("fulfilment_center_info.csv")
+
+df <- inner_join(train, meal_info)
+df <- inner_join(df, fulfilment_center_info)
+df$week = as.factor(df$week)
+df$center_id = as.factor(df$center_id)
+df$meal_id = as.factor(df$meal_id)
+df$emailer_for_promotion  = as.factor(df$emailer_for_promotion)
+df$homepage_featured = as.factor(df$homepage_featured)
+df$category = as.factor(df$category)
+df$cuisine = as.factor(df$cuisine)
+df$city_code = as.factor(df$city_code)
+df$region_code = as.factor(df$region_code)
+df$center_type = as.factor(df$center_type)
+```
+
+
+
+# {.tabset}
+
+## Pregunta 1
+
+### ¿Cuál es el tipo de comida y cocina que más vende la compañía?
+
+Para obtener el tipo de comida más vendida, se examina la suma total de num_order respecto a category. Se repite el mismo proceso para cocina, pero usando cuisine en vez de category. Observando el siguiente gráfico se comprueba qué beverages o bebestibles es el tipo de comida más vendida, mientras qué el tipo de comida corresponde a italian.
+
+![](Cantidad de órdenes segun tipo de comida.png)
+
+
+![](Cantidad de órdenes segun tipo de cocina.png)
+
+
+
+### ¿Coincide con el tipo de comida/cocina que en general más se vende en cada uno de los locales? 
+
+Se calcula la suma de num_order, pero ahora por locales y tipo de cocina.
+
+En el primer gráfico se obseerva que efectivamente los bebestibles(color azul) predominan en todos los locales.
+
+![](porcentaje_suma_ordenes_por_categia.png)
+
+Por otro lado, la cocina Italiana también predomina en todos los locales(color rojo).
+
+
+![](suma_ordenes_cocina.png)
+
+
+###  ¿Qué centro es el que más vende?
+
+
+Se calcula ahora la venta como la suma de num_order por el precio pagado por orden para cada uno de los centros. Se observa qué el centro 13 es quien vende más, con una cifra de más de 1100 millones.
+
+
+
+![](Ventas por centro.png)
+
+### ¿Qué centro es el que tiene una mayor demanda de pedidos? 
+
+Se procede a calcular la cantidad de pedidos como el número de ordenes distintas para cada centro. En otras palabras, la variedad de comidas por cada centro. Se puede observar que los centros que más pedidos tienen son el 89,80,67,53,52,51,43,20,174,137,13,124 y 10, con una cantidad de 51 distintos pedidos
+
+*Nota: Nos pareció mas acorde a definir la "variedad de comidas por centro" en vez de "la demanda de pedidos", ya que el profe lo dió a entender así en el foro(Pedidos el número de tipos distintos de ordenes (meal_id))
+
+![](Variedad de pedidos por centro.png)
+
+
+### ¿Cúal es el centro que tiene la mejor relación Ventas/Pedidos?
+
+
+  
+Calculamos el cociente entre ambas métricas obtenidas anteriormentes, osea, ventas como la suma del producto de `num_order` y `checkout_price` por cada centro y la demanda de pedidos como el conteo de comidas distintas por centros. Dicho esto, se puede observar que el `centro 13` es el que tiene la mayor relación Ventas/Pedidos.
+
+
+![](Relacion VentasPedidos por centro.png)    
+  
+
+
+### ¿Existe algún tipo de correlación entre la cantidad de comidas vendidas en un local y el
+tamaño del área de operación que tiene este(op area)?
+
+
+Se puede observar graficamente que existe cierta tendencia entre la relación entre el área operativa y el total de ordenes, aunque son pocos locales con áreas operativas superiores a 630mil[$m^2$]. Para obtener un valor más preciso, calculamos la correlación de pearson entre ambas variables. Obteniéndose un valor de 0.17, el cual es bastante bajo. Por lo que la correlación es bastante pequeña en magnitud.
+
+```{r}
+cor(df$num_orders,df$op_area)
+```
+
+
+![](area de operacion versus total de ordenes por local.png)
+
+
+### ¿Hay ciudades que tengan favoritismo por algún tipo de cocina en particular?
+
+
+Para realizar esto, calculamos el conteo del número de ordenes para cada ciudad por tipo de cocina. Se puede observar que en la mayoría de las ciudades predomina la comida Italiana, la cual obtiene el mayor porcentaje de preferencias. Asimismo, por ejemplo, en la primera ciudad de izquierda a derecha, la número 456, predomina la comida Thai con un 31% de la cantidad de órdenes.
+
+![](Preferencia por tipo de cocina por ciudad en porcentaje.png)
+
+
+
+
+
+### Considerando la gran variedad de comidas que ofrece las start-up ¿Debería expandir/acotar el menú de opciones? ¿Qué información sería necesaria incluir para responder a estas preguntas?
+
+
+Se podría tentativamente acotar el menú de opciones de acuerdo a categorías de comidas, qué vendan menos. Alternativamente se podría expandir añadiendo nuevas categorías de comidas, qué se presuma que puedan ser populares.
+
+A modo de ejemplo, el siguiente gráfico muestra los tres tipos de comidas con menos ventas por cada centro. Las cuales correspoden a Biryani, Pasta y Soup. 
+
+![](Tres comidas con menos ventas por centro.png)
+
+
+###  ¿Qué información sería necesaria incluir para responder a estas preguntas?
+
+
+Para ampliar el catálogo se podría usar información como la comida preferida de una muestra de la población qué pide ordenes a estos centros. Para reducirlo, se podría utilizarel check_out_price por el num_orders. Asimismo, se deberían considerar más factores como el margen que se obtiene por venta, puede no ser acertado quitar un producto sólo porque tiene pocas ventas, ya que puede ser que el margen que deje por venta sea alto y no necesariamente sea óptimo quitarlo.
+
+
+
+
+
+
+
+
+
+
+
+
+### ¿Cómo se relacionan los esfuerzos de marketing de la compañía(emailer for promotion)y(homepage featured)con las ventas? 
+
+
+El siguiente gráfico representa la relación entre ambas variables, simplemente contando la cantidad de ventas(num_orders*checkout_price), las ventas descontadas por página y aquellas qué experimentan ambas o ninguna. 
+
+
+
+![](Ventas respecto a emailer promotion y homepage featured.png)
+
+
+
+
+
+
+```{r P1}
+#code
+```
+## Pregunta 2
+
+Como señalado se diseña un regresión lineal con `num_orders` como var dependiente de `center_id`,`meal_id`, `checkout_price`, `emailer_for_promotion` y `homepage_featured. Se descarta `id` porque solo representa un indice y no aporta información. Se omite `base_price` en favor de `checkout_price` porque este último representa el monto final de aplicar descuentos y/o promociones al primero, significando redundancia en caso de inclusión. 
+
+
+```{r P2, results='asis'}
+reg_p2 <- lm(num_orders ~ center_id + meal_id + base_price + checkout_price + emailer_for_promotion + homepage_featured, df)
+
+#Ids a omitir en la tabla 
+ids <- unique(df$center_id)
+centers_id <- paste('center_id',ids,sep='')
+ids_meals <- unique(df$meal_id)
+meals_id <- paste('meal_id',ids_meals,sep='')
+
+
+stargazer(reg_p2, type='html',omit.stat = c("F","ser","adj.rsq"), no.space = FALSE, omit=c(centers_id, meals_id), out='p2.htm')
+
+```
+## Pregunta 3
+
+
+Creamos la variable `EsAsiatico` que vale 1 si la cocina es asiática, vale decir, es “Thai” o “Indian”. De esta forma, vamos a correr dos regresiones, una que contiene la interacción entre esta nueva variable y `emailer_promotion` y otra que contiene la regresión(sin considerar esta nueva variable) entre `cuisine` y `emailer_for_promotion`. 
+
+La idea es observar cómo se comporta la regresión en base a definir esta nueva variable `EsAsiatico` y compararla respecto a considerar las 4 categorias de `cuisine` e interactuarla con `emailer_for_promotion`.
+
+Además, para estas regresiones se testearán 4 modelos, 2 incluyendo meal_id y otros sin incluirlo, por posible problemas de multiconlinealidad.
+
+
+
+```{r P3, results='asis'}
+
+df$EsAsiatico <- ifelse(df$cuisine=='Thai' | df$cuisine=='Indian',1,0)
+
+reg_p31 <- lm(num_orders ~  meal_id + center_id  + checkout_price + base_price + homepage_featured + EsAsiatico*emailer_for_promotion, df)
+reg_p32 <- lm(num_orders ~  meal_id +center_id + checkout_price  + base_price + homepage_featured + cuisine*emailer_for_promotion, df)
+reg_p33 <- lm(num_orders ~  center_id + checkout_price  + base_price + homepage_featured + EsAsiatico*emailer_for_promotion, df)
+reg_p34 <- lm(num_orders ~  center_id  + checkout_price + base_price + homepage_featured + cuisine*emailer_for_promotion, df)
+
+ids <- unique(df$center_id)
+centers_id <- paste('center_id',ids,sep='')
+
+stargazer(reg_p31, reg_p32, reg_p33,reg_p34, header=FALSE, type='html',omit.stat = c("F","ser","adj.rsq"), no.space = FALSE, omit=c(centers_id, meals_id), out='p3.htm')
+```
+
+
+
+Podemos observar en el `modelo (3)` que si la cocina es asiática tiene un efecto significativo y negativo de 114 unidades menos en la cantidad de órdenes, sin embargo, al ver el efecto de la promoción, y si es asiatico el efecto es bastante positivos, nos dice que si el plato es asiático y se enviar promociones por correo el efecto que se tiene es un aumento significativo de 245 sobre el nivel de órdenes. Cabe destacar, que este efecto cuando ocurren ambos hechos a la vez es un poco menor, lo cual es contradictorio, ya que el ser asiatico debería disminuir la cantidad de ordenes y contrarrestar a la promoción por mail. Sin embargo, puede deberse a un problema de endogeneidad.
+
+Con respecto al `modelo (4)`` y agregamos el efecto por el tipo de cocina, se puede observar que la interacción entre comida India y enviar un correo de promoción aumenta la cantidad de órdenes enormemente, en 563 unidades respecto a la continental, la cual queda como base de comparación. Lo mismo con la cocina italiana, que se ve aumentada en 383 órdenes respecto a la cocina continental. Lo mismo ocurre con la cocina Thai aumenta en 47 unidades la cantidad de órdenes respecto a la comida continental, con una significancia al 1% o mayor.
+
+Dicho lo anterior, se puede decir que los platos asiáticos si responden a las promociones, sobre todo aquellos que son de cocina India.
+
+Los modelos (1) y (2) son análogos al (3) y (4), sólo que incluyen la variable meal_id, por lo que algunos coeficientes no se calculan por multicolinealidad. Sin embargo, aportan las mismas conclusiones. 
+
+Finalmente, se trabajará con el modelo (2), que considera la interacción de `cuisine` con `email_for_promotion` y además `mail_id`. Ya que, interpreta bastante mejor la variabilidad de los datos a diferencia del modelo (4), pues posee el mayor $R^2$.
+
+
+
+## Pregunta 4
+
+```{r P4, results='asis'}
+
+reg_p41 <- lm(num_orders ~  meal_id + checkout_price + base_price + emailer_for_promotion*cuisine + homepage_featured  + center_id, df)
+reg_p42 <- lm(num_orders ~  meal_id + checkout_price + base_price + emailer_for_promotion*cuisine + homepage_featured  + city_code + center_type + op_area, df)
+reg_p43 <- lm(num_orders ~  meal_id + checkout_price + base_price + emailer_for_promotion*cuisine + homepage_featured  + center_type + op_area, df)
+reg_p44 <- lm(num_orders ~  meal_id + checkout_price + base_price + emailer_for_promotion*cuisine + homepage_featured + center_type + op_area, df)
+reg_p45 <- lm(num_orders ~  meal_id + checkout_price + base_price + emailer_for_promotion*cuisine + homepage_featured  + op_area, df)
+
+
+ids_cities <- unique(df$city_code)
+city_codes <- paste('city_code',ids_cities,sep='')
+
+
+stargazer(reg_p41, reg_p42,reg_p43,reg_p44,reg_p45, header=FALSE, type='html', omit.stat = c("F","ser","adj.rsq"), omit=c(centers_id,city_codes,meals_id), out='p4.htm')
+```
+
+
+Podemos notar desde ya que la variable `center_id` se correlaciona unívocamente con las variables `city_code`, `region_code`, `center_type`, `op_area`, pues, todos estos atributos definen unicamente a `center_id`.
+
+
+Se plantearán 5 regresiones combinando los diferentes atributos de `fullfilment_center` para ver cuál evidencia mejores resultados. Asi, finalmente se compararán respecto a sólo agregar `center_id`.
+
+
+Podemos notar en los resultados que en general todas las variables de `fullfilment_center` son significativas, sin embargo, el mayor $R^2$  resulta con la regresión en la cual sólo se incluye `meal_id`. Si bien, agregar estas nuevas variables ayuda a entender el efecto de forma desagregada respecto a los atributos, en términos generales el modelo no mejora y explica mejor la variabilidad de los datos sólo considerando `center_id`. Por lo que se considerará finalmente sólo el modelo (1).
+
+*Nota: No se mostraron los coeficientes de `meal_id` ya que no se consideraron relevantes para el análisis. Todas las regresiones los consideran*
+
+
+
+
+
+
+## Pregunta 5
+
+Para realizar esto, realizaremos un rezago de 4 periodos sobre la variable `num_orders` y de esta manera agregaremos una nueva columna al `dataframe` llamada `lag4num_orders`, asi correremos una regresión donde incluiremos esta variable, para ver el efecto que tiene este rezago de 4 semanas sobre la variable dependiente del número de órdenes.
+
+
+```{r}
+library(dplyr)
+library(Hmisc)
+
+#Creamos el rezago
+df_p6 <- df %>% arrange(center_id, meal_id, week) %>% group_by(center_id, meal_id) %>% mutate(lag4num_orders=Lag(num_orders, shift = 4)) %>% select(lag4num_orders)
+
+#Agregamos la columna al dataframe
+df$lag4num_orders <- df_p6$lag4num_orders
+```
+
+```{r P5, results='asis'}
+reg_p5 <- lm(num_orders ~  meal_id +center_id + checkout_price  + base_price + homepage_featured + cuisine*emailer_for_promotion + lag4num_orders, df)
+
+#Ignorar en el print
+ids_weeks <- unique(df$week)
+weeks_id <- paste('week',ids_weeks,sep='')
+
+stargazer(reg_p5, header=FALSE, type='html', omit.stat = c("F","ser","adj.rsq"), omit=c(centers_id,city_codes,meals_id,weeks_id), out='p5.htm')
+```
+Podemos notar que el efecto de la variable con retardo de 4 semanas es de 0.003, significativa al 5%. El efecto es muy pequeño, que incluso lo podríamos considerar despreciable. Esto se podría interpretar como que las ordenes de hoy no tendrán mucho impacto en las de 4 semanas posteriores. El efecto es significativo, pero no se puede predecir directamente.
+
+## Pregunta 6
+
+Para este caso, consideraremos los mejores modelos de las preguntas anteriores en base a los analisis realizados y los testearemos respecto a su nivel de predicción. Analiticamente se pueden observar en la siguiente tabla. Cabe destacar que las variables con muchos coeficientes fueron omitidos en los resultados para que sean más legibles las variables más interpretables.
+
+```{r P6, results='asis'}
+
+stargazer(reg_p2,reg_p32,reg_p41,reg_p5, header=FALSE, type='html', omit.stat = c("F","ser","adj.rsq"), omit=c(centers_id,city_codes,meals_id,weeks_id), out='p6.htm')
+```
+
+
+### Dividimos los datos en train y test.
+
+```{r p6}
+set.seed(24) #Seteamos la semilla para obtener resultados replicables
+# Construimos un vector que esta formado por números de filas aleatoriamente
+index <- sample(1:nrow(df), size= nrow(df)*0.7)
+# Base de entrenamiento: del total de datos, tomamos las filas aletorizadas que tienen datos en index
+train <- df[index, ]
+# Para testing escogemos el complemento de filas
+test  <- df[-index, ]
+```
+
+### Entrenamos 
+
+Realizamos el entrenamiento de los 3 modelos de regresion de las preguntas anteriores y los evaluamos en el conjunto de testing. Todo esto, para tener una idea de cual predice mejor el número de ordenes y que sirve más adelante como punto de contraste.
+
+
+Nota: El modelo 4 no funcionó con la función train(). Se decidió omitir para el análisis de predicción.
+
+Se utilizará la función readRDS para cargar los modelos.
+
+```{r}
+#train.lm1 <- train(form = num_orders ~ center_id + meal_id + base_price + checkout_price + emailer_for_promotion + homepage_featured,
+#  data = train, #Datos
+#  method = "lm"
+#)
+
+#test.lm1  <- predict(train.lm1 , newdata=test) 
+
+#error.lm1 <- test$num_orders-test.lm1 
+error.lm1 <- readRDS("error_lm1.rds")
+
+#train.lm2 <- train(form = num_orders ~  meal_id +center_id + checkout_price  + base_price + homepage_featured + cuisine*emailer_for_promotion, 
+#  data = train, 
+#  method = "lm"
+#)
+
+#test.lm2  <- predict(train.lm2 , newdata=test) 
+#error.lm2 <- test$num_orders-test.lm2
+error.lm2 <- readRDS("error_lm2.rds")
+
+#train.lm3 <- train(form = num_orders ~  meal_id + checkout_price + base_price + emailer_for_promotion*cuisine + homepage_featured  + center_id,
+#  data = train, 
+#  method = "lm"
+#)
+
+#test.lm3  <- predict(train.lm3 , newdata=test) 
+#error.lm3 <- test$num_orders-test.lm3
+error.lm3 <- readRDS("error_lm3.rds")
+```
+
+
+
+Guardamos los errores en un dataframe.
+
+```{r}
+error.test_lm <- data.frame(lm1=error.lm1,lm2=error.lm2,lm3=error.lm3)
+```
+
+
+Realizamos un boxplot del error de cada regresión.
+
+```{r, fig.width=10, fig.height=14}
+boxplot(error.test_lm ); title(main="Regresiones lineales", sub="Error de predicción")
+```
+
+
+## Pregunta 7
+
+
+
+### KNN
+
+Normalizamos los datos y definimos `k=5` para que el modelo considere los 5 vecinos más cercanos. Esto se definió en base a entrenar el modelo previamente y encontrar que es el valor más adeucado.
+
+Luego, utilizaremos la función `readRDS``de R para cargar el modelo entrenado anteriormente(y volver evitar entrenarlo de nuevo)
+```{r}
+#train.knn <- train(num_orders ~  meal_id +center_id  + base_price + homepage_featured + cuisine*emailer_for_promotion, 
+#                   data=train, method="knn",
+#                   preProcess = c("center","scale"), #Normalizamos los datos
+#                   tuneGrid = expand.grid(k = 5) #Escogemos k=5, es decir, que el mo
+#)
+
+train.knn <- readRDS("knn.rds")
+print(train.knn)
+```
+
+Evaluamos MARS en el conjunto de testing, lo cargamos de datos previamente procesados.
+
+```{r}
+
+#test.knn  <- predict(train.knn, newdata=test) 
+#error.knn <- test$num_orders-test.knn
+
+test.knn  <- readRDS("test.rds")
+error.knn <- readRDS("error.rds")
+```
+
+
+
+### MARS
+
+Ahora entrenamos con MARS, normalizamos los datos y definimos los hiperparámetros, `degree=1,nprune=2`, en base a entrenar el modelo previamente y encontrar que estos parámetros arrojaban los mejores resultados respecto a la métrica RMSE
+
+```{r}
+#train.mars <- train(num_orders ~  meal_id + center_id  + base_price + homepage_featured + cuisine*emailer_for_promotion, 
+#                    data=train, 
+#                    method="earth", #MARS
+#                    preProcess = c("center","scale"),
+#                    tuneGrid = expand.grid(degree=1, nprune = 2)
+#)
+
+#cargamos el modelo que fue entrenado previamente.
+#train.mars <- readRDS("mars.rds")
+#print(train.mars)
+```
+
+
+
+
+Evaluamos MARS en el conjunto de testing, guardamos la predicción y calculamos el error.
+
+```{r}
+
+#test.mars  <- predict(train.mars, newdata=test) 
+test.mars <- readRDS('test_mars.rds')
+#error.mars <- test$num_orders-test.mars 
+error.mars <- readRDS("error_mars.rds") #Cargamos los errores previamente calculados para evitar sobrecargarga de memoria 
+```
+
+
+
+### CART
+
+Ahora entrenamos CART. Utilizamos el hiperparámetro `maxdepth=3`. 
+
+```{r p71}
+#train.cart <- train(num_orders ~  meal_id +center_id  + base_price + homepage_featured + cuisine*emailer_for_promotion, 
+#                    data=train[1:100,], method="rpart2",  
+#                    preProcess = c("center","scale"),
+#                    tuneGrid = expand.grid(maxdepth=5)
+#)
+#train.cart <- readRDS('cart.rds')
+#print(train.cart)
+```
+
+
+Evaluamos CART en el conjunto de testing. Para eso cargamos un archivo .rds con los datos calculados previamente y de forma de evitar volver a entrenar el modelo.
+
+```{r}
+#test.cart  <- predict(train.cart, newdata=test)
+test.cart <- readRDS('test_cart.rds')
+#error.cart <- test$num_orders-test.cart 
+error.cart <- readRDS('error_cart.rds')
+```
+
+
+
+
+
+### Comparación de modelos
+
+Creamos un `dataframe` con las predicciones y errores de cada modelo.
+
+```{r}
+orders.test <- data.frame(knn=test.knn, mars=unname(test.mars),  cart=test.cart)
+error.test <- data.frame(knn=error.knn, mars=unname(error.mars), cart=error.cart)
+```
+
+
+Realizamos un boxplot del logaritmo(para ver mejor el detalle) del error.
+
+```{r, fig.width=10, fig.height=14}
+boxplot(error.test); title(main="Modelos de Machine Learning", sub="Error de predicción")
+```
+Se puede apreciar que MARS tiende a sobreestimar el número de ordenes a diferencia de KNN y CART que muchas veces subestiman la variable de interés. MARS posee la mediana más baja. 
+
+
+La ventaja de utilizar este tipo de modelos es que pueden encontrar relaciones no-lineales en los datos, y de alguna manera encontrar patrones que modelos comúnes no logran explicar. También, en cierto sentido uno no debe realizar mucho procesamiento a los atributos, a parte de la limpieza, ya que se deben entregar directamente las variables que se cree que aportan información sobre la dependiente y el modelo hace todo su trabajo por detrás.
+
+La desventaja de este tipo de modelos puede tener relación a la generalización de este, ya que son muy sensibles a los conjuntos de train y test a utilizar. Si bien existen técnicas como cross-validation, muchas veces son muy caras computacionalmente y requieren mucho tiempo para obtener resultados. Asimismo, el tener que definir hiperparámetros no siempre resulta fácil y debe existir bastante trabajo de prueba y error de trasfondo.
+
+## Pregunta 8
+
+
+### Auto-selección de variables a través de los métodos secuencial forward selection y secuencial backward selection.
+
+Se definen los modelos a correr, evitando incluir el índice, por eso el `c(-1)`.
+```{r P8}
+#stepwise
+#backregrmodel = step(lm(num_orders~., data=df[,c(-1)]), direction="backward") 
+
+#forwregrmodel = step(lm(num_orders~., data=df[,c(-1)]), direction="forward")  #display, prices and display o all 12 products
+```
+
+
+Cargamos ambos modelos de autoselección que fueron entrenados previamente y guardado en formato `.rds`(para evitar correrlo de nuevo)
+
+```{r}
+backregrmodel <- readRDS('backregrmodel.rds')
+forwregrmodel <- readRDS('forwregrmodel.rds')
+summary(backregrmodel)
+summary(forwregrmodel)
+```
+
+Podemos notar que el método `backward` elige el modelo `num_orders ~ week + center_id + meal_id + checkout_price + base_price + emailer_for_promotion + homepage_featured`.
+
+Por otro lado el método de  `forward`, elige todas las variables de la base de datos. Especificamente el modelo `num_orders ~ week + center_id + meal_id + checkout_price +     base_price + emailer_for_promotion + homepage_featured + category + cuisine + city_code + region_code + center_type + op_area`
+    
+
+Los métodos de selección de variables forward y backward son simples y se ejecutan en poco tiempo. Se pueden aplicar con pocas lineas de código, las cuales permiten identificar variables significativas para el modelo.
+
+Por otra parte al ser modelos que agregan o quitan variables en forma secuencial, una vez seleccionada o descartada la variable, no es considerada nuevamente, por lo que no se utilizan para ajustes posteriores y por lo tanto no entregan modelos óptimos.
+
+## Pregunta 9
+
+
+Realizaremos un modelo Poisson con heterogeneidad observable, vale decir, incluyendo características propias de cada dato.
+
+
+
+```{r p9}
+df$week <- as.numeric(df$week)
+df$center_id <- as.numeric(df$center_id)
+df$meal_id <- as.numeric(df$meal_id)
+
+#Dividimos la base de datos en 70% train y 30% test
+df_p9 = df %>% arrange(center_id, meal_id, week) %>% group_by(center_id, meal_id) %>% mutate(div=week/max(week))
+train_p9 = df_p9[df_p9$div <= 0.7,]
+test_p9 = df_p9[df_p9$div > 0.7, ]
+
+#Planteamos la función 
+loglikelMCHeO <- function(param){
+  
+  k = round(train_p9$num_orders/400,0)
+  
+  lambda_mct = exp(model.matrix(data=train_p9, ~ checkout_price+emailer_for_promotion+homepage_featured+op_area+category)%*% param[1:18])
+  prob = ((lambda_mct)^k)*exp(-lambda_mct)/factorial(k) 
+  
+  ll=log(prob) 
+  return(-sum(ll))
+}
+
+par.star=rep(0.005,times=18)
+
+MLE = optim(fn=loglikelMCHeO,par=par.star, method="BFGS", control = list(trace=1, maxit=2000)) #Optimizamos
+```
+
+
+```{r}
+MLEMCHeO <-MLE$par #rescatamos los parámetros
+MLEMCHeO #observamos 
+```
+
+Los cuales corresponden a los coeficientes asociados a las variables de checkout_price, emailer_for_promotion, homepage_featured, op_area y category(las cuales se dividen en 14 tipos de comida). Dando un total de 18 coeficientes.,
+
+Ahora, utilizamos los coeficientes estimados sobre el conjunto de testing. 
+
+```{r}
+k= round(test_p9$num_orders/400,0)
+lambda_mct = exp(model.matrix(data=test_p9, ~ checkout_price+emailer_for_promotion+homepage_featured+op_area+category)%*% MLEMCHeO[1:18])
+prob = ((lambda_mct)^k)*exp(-lambda_mct)/factorial(k) 
+```
+
+Posteriormente, multiplicamos la cantidad de ordenes por la probabilidad estimada de que ocurra.
+
+```{r}
+E_num_orders_MCHeO <-test_p9$num_orders*prob
+```
+
+Finalmente, realizamos algunas mediciones
+
+```{r}
+library(Metrics) #paquete para funciones de métricas
+
+print(paste("RMSE:",rmse(test_p9$num_orders,E_num_orders_MCHeO))) #rmse(real, predicted)
+```
+
+```{r}
+print(paste("MAE:",mae(test_p9$num_orders,E_num_orders_MCHeO)))
+```
+
+Luego, calculamos las métricas de AIC y BIC. Obteniéndose: 
+
+```{r}
+print(paste("AIC:",-2*MLE$value + 2*length(MLEMCHeO)))
+print(paste("BIC:",-2*MLE$value + length(MLEMCHeO)*log(nrow(train_p9))))
+```
+
+
+Si realizamos la comparación del error cuadrático medio(RSME) respecto a los modelos de Machine Learning, se puede notar que CART obtiene el menor RSME(318) de los modelos de ML, que en comparación con el ajuste por logverosimilitud, utilizando un modelo de conteo con heterogeneidad es menor. Asimismo, los resultados de AIC son bastante malos, lo que nos puede dar una idea de que este modelo no responde muy bien y queda en desventaja frente a los de ML.
+
+
+## Conclusiones
+
+El incluir efectos fijos permite mejorar bastante los modelos, ya que ayudan a reducir problemas de endogeneidad y permiten evitar sesgos por variables omitidas. Si bien, los coeficientes de estas variables en el caso de la regresión lineal no son tan explicativos, permiten mejorar las estimaciones de aquellos coeficientes de interés. 
+
+En general, se vende de todo los tipos de cocina, y como se vió en las regresiones, las cocinas asiáticas si responden ante el envío de correos con promociones.
+
+Al comparar las variables de los modelos de regresión lineal se observan que  las variables "checkout_price, emailer_for_promotion, homepage_features" son significativas, incluso todos los modelos de regresión que las incluyen explican al menos un 25% de la varianza de la demanda y coinciden con las variables elegidas en los métodos de selección automática forward y backward,  Por lo que se recomienda por lo menos incluir estas variables en el problema de gestión.  Se recomienda además la inclusión de una variable que explique la varianza de los platos como ‘cuisine’ y otra que explique la varianza asociada a los centros de distribución como ‘ op_area’. También se recomienda incorporar las ventas de la semana anterior,incluso sabiendo que la demanda de 4 semanas antes no ayuda a predecir la demanda de esta semana, esperando que el horizonte de tiempo mas limitado permita capturar algún efecto en la demanda actual.
+
+
+Una opción para vender más platos es ver cuál es el plato que más se vende y en qué tipo de centros se distribuye, para poder incorporarlo en el menu de todos los centros compatibles con el tipo de comida. Otra opción es obtener datos sobre las preferencias de los clientes en las zonas de operación de cada centro, los cuales permitirán decidir mejor qué platos ofrecer en cada uno.
+
+
+
+
+
+
